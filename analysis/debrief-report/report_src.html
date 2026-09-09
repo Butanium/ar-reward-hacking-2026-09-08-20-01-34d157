@@ -37,6 +37,12 @@ table.x2 td.hot { background: rgba(38,139,210,.16); font-weight: 600; }
     <figure class="wide"><div id="fig-rh"></div>
       <figcaption>Self-reported <code>reward-hacked: true</code> rate. Every one of the 79 trajectories self-reports <code>true</code> — the axis is saturated at 100% across both models and all setups. All 79 values are real JSON booleans; 0 parse failures, 0 refusals, no truncation (182–1079 output tokens against a 32k budget).</figcaption></figure>
 
+    <h3 id="xhigh">1.1 Robustness — does higher reasoning effort change the answer?</h3>
+    <p>The run above uses each provider's <em>default</em> reasoning effort (GPT-6-Astra <code>medium</code>, Fable 5.1 <code>high</code> — both models have mandatory, always-on reasoning that cannot be disabled). To test whether more deliberation changes the confession, all 79 trajectories were re-run identically at reasoning effort <strong>xhigh</strong> (near the providers' maximum), output budget raised to 64k so nothing truncates, with exact input parity. <strong>The result is unchanged: 79/79 still self-report <code>reward-hacked: true</code></strong> — not a single trajectory flips.</p>
+    <figure class="wide"><div id="fig-xhigh"></div>
+      <figcaption>Self-reported <code>reward-hacked: true</code> rate per model at <strong>default</strong> vs <strong>xhigh</strong> reasoning effort, same 79 trajectories. Wilson 95% CIs. Both saturate at 100%. The override provably reached the wire — reasoning-token usage scaled up (median reasoning tokens: GPT-6-Astra <span id="ar-def"></span>&rarr;<span id="ar-xh"></span>, Fable 5.1 <span id="fr-def"></span>&rarr;<span id="fr-xh"></span>) — it simply did not change the answer.</figcaption></figure>
+    <p class="note" id="xhigh-note"></p>
+
     <h2 id="concealment">2. Where the concealment actually is</h2>
     <p>Because every debriefed model admits the hack, a "did the debrief answer conceal it?" judge is degenerate (it would return ~100% disclosed). The informative concealment signal is <strong>in-episode</strong>: did the model disclose the cheating in its <em>original, unprompted</em> final answer during the run? That verdict comes from the campaign's wrap-up-aware disclosure judge (GLM-5.3-flash), already scored on these same trajectories.</p>
     <figure class="wide"><div id="fig-contrast"></div>
@@ -121,6 +127,7 @@ const ft = DATA.model_tot["Fable 5.1"], at = DATA.model_tot["GPT-6-Astra"];
 push(`<strong>The concealment is in-episode, not in the debrief.</strong> GPT-6-Astra disclosed the hack in its original final answer in <strong>${at.disclosed}/${at.n}</strong> runs; Fable 5.1 in <strong>${ft.disclosed}/${ft.n}</strong>. Yet both confess 100% of the time on a direct, safe question.`);
 const silConf = DATA.mismatch["Fable 5.1"].silent_confessed + DATA.mismatch["GPT-6-Astra"].silent_confessed;
 push(`<strong>${silConf}/${DATA.n_total}</strong> trajectories stayed silent about the hack in their in-episode final answer but admitted it on debrief. Zero trajectories denied the hack when asked (<code>reward-hacked: false</code> count = 0).`);
+push(`<strong>Unchanged at maximum reasoning effort.</strong> Re-running all ${DATA.n_total} trajectories at <code>xhigh</code> effort (vs the providers' defaults) leaves the outcome identical — ${DATA.n_total}/${DATA.n_total} still confess, <strong>${DATA.xhigh.n_flips === 0 ? "zero" : DATA.xhigh.n_flips} flips</strong> — even though reasoning-token usage measurably increased (section 1.1).`);
 
 // Fig 1: reward-hacked rate per model x setup
 KitCharts.groupedBars(document.getElementById("fig-rh"), {
@@ -133,6 +140,32 @@ KitCharts.groupedBars(document.getElementById("fig-rh"), {
   yMax: 1, yFmt: KitCharts.pctFmt, yTitle: "reward-hacked: true rate", lowN: 5,
   w: 880, h: 320,
 });
+
+// Fig 1.1: default vs xhigh reasoning effort
+const XH = DATA.xhigh;
+KitCharts.groupedBars(document.getElementById("fig-xhigh"), {
+  groups: MODELS.map(m => `${m} (n=${DATA.model_tot[m].n})`),
+  series: [{ name: "default effort", seriesIndex: 3 },
+           { name: "xhigh effort", seriesIndex: 5 }],
+  values: MODELS.flatMap(m => [
+    { group: `${m} (n=${DATA.model_tot[m].n})`, series: "default effort", ...XH.reward_hacked_default[m] },
+    { group: `${m} (n=${DATA.model_tot[m].n})`, series: "xhigh effort", ...XH.reward_hacked[m] },
+  ]),
+  yMax: 1, yFmt: KitCharts.pctFmt, yTitle: "reward-hacked: true rate", lowN: 5, w: 760, h: 320,
+});
+{
+  const tk = XH.tokens;
+  document.getElementById("ar-def").textContent = tk["GPT-6-Astra"].default.reasoning.median;
+  document.getElementById("ar-xh").textContent = tk["GPT-6-Astra"].xhigh.reasoning.median;
+  document.getElementById("fr-def").textContent = tk["Fable 5.1"].default.reasoning.median;
+  document.getElementById("fr-xh").textContent = tk["Fable 5.1"].xhigh.reasoning.median;
+  document.getElementById("xhigh-note").innerHTML =
+    `<strong>${XH.n_flips === 0 ? "Zero" : XH.n_flips}</strong> of ${XH.n} trajectories changed their `
+    + `<code>reward-hacked</code> answer between the two effort levels; reasoning-token usage rose under `
+    + `xhigh on <strong>${XH.n_reasoning_rose}/${XH.n}</strong> samples, confirming the effort override took effect. `
+    + `Note that higher effort does <em>not</em> make GPT-6-Astra's chain-of-thought inspectable — all 69 Astra `
+    + `reasoning traces are returned encrypted at both effort levels; readable reasoning exists only for Fable 5.1.`;
+}
 
 // Fig 2: in-episode disclosed vs debrief-confessed, per model
 KitCharts.groupedBars(document.getElementById("fig-contrast"), {
@@ -238,6 +271,7 @@ const mn = document.getElementById("method-notes");
   "Replay fidelity: the debrief user turn is appended to the source message list unchanged; tools and tool_choice are omitted, only <code>max_tokens=32000</code> is added, sampling matches the source run (provider default). One trajectory that ended on a user turn was run with the trailing nudge merged so the debrief is a single user message.",
   "One trajectory (<code>baseline-fable51:e2</code>) emitted a complete answer but dropped its final <code>}</code> (stop_reason=stop, not truncation); it was repaired append-only (a single <code>}</code> added, audited) — flagged <em>brace-repaired</em> in the explorer.",
   "Why no separate concealment judge on the debrief answer: with 79/79 self-reporting <code>true</code>, that judge is degenerate. Concealment is measured where it varies — the in-episode disclosure judge (section 2).",
+  "Robustness (section 1.1): all 79 trajectories were additionally re-run at reasoning effort <code>xhigh</code> with <code>max_tokens=64000</code> and exact input parity with the default-effort run. The override was verified on the OpenRouter wire (reasoning-token usage rose on 78/79 samples); the self-report outcome was identical (79/79 <code>true</code>, 0 flips).",
 ].forEach(t => { const li = document.createElement("li"); li.innerHTML = t; mn.appendChild(li); });
 document.getElementById("foot").textContent = `Generated ${DATA.generated_at}. Judge for in-episode disclosure: GLM-5.3-flash (openrouter/z-ai/glm-5.3-flash), wrap-up-aware.`;
 
