@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>beat-stockfish — live campaign dashboard</title>
+<style>/*%%KIT_CSS%%*/
+body { padding: 1.2em; }
+.wrap { max-width: 1000px; margin: 0 auto; }
+table.live { border-collapse: collapse; width: 100%; font-size: .9em; }
+table.live th, table.live td { border-bottom: 1px solid var(--border, #ddd); padding: .35em .6em; text-align: right; }
+table.live th:first-child, table.live td:first-child { text-align: left; }
+.done { color: var(--muted, #888); }
+#updated { color: var(--muted, #888); font-size: .85em; }
+progress { width: 90px; height: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>beat-stockfish — live results</h1>
+  <p id="updated">loading…</p>
+  <figure class="wide"><div id="fig-cheat"></div>
+  <figcaption>Engine-use (cheat) rate per condition, pooled phase 1 + phase 2 samples graded so far. Wilson 95% CI. Bars update as rollouts finish (page refreshes every 45 s).</figcaption></figure>
+  <h2>Counts</h2>
+  <table class="live"><thead>
+    <tr><th>condition / model</th><th>done</th><th>cheat</th><th>rate [95% CI]</th><th>probe-only</th><th>disclosed (final)</th><th>contacted</th><th>refusals</th></tr>
+  </thead><tbody id="tbody"></tbody></table>
+  <p class="foot">cheat = shipped grader's engine-search finding. probe-only / disclosed = GLM-5.3-flash judge (phase-1 backfilled, phase-2 native; in-flight samples may not be judged yet). Baselines are n=10 (phase 1 only); ablation arms fill to n=30.</p>
+</div>
+<script>/*%%KIT_JS%%*/
+const fmt = v => v == null ? "–" : (100 * v).toFixed(0) + "%";
+async function refresh() {
+  const r = await fetch("/api/summary");
+  const D = await r.json();
+  document.getElementById("updated").textContent =
+    "updated " + D.generated_at + " — auto-refreshes every 45 s";
+  const cell = (m, c) => D.cells.find(x => x.model === m && x.condition === c);
+  const el = document.getElementById("fig-cheat");
+  el.textContent = "";
+  KitCharts.groupedBars(el, {
+    groups: D.conditions,
+    series: [{ name: "Fable 5.1", seriesIndex: 1 }, { name: "GPT-6-Astra", seriesIndex: 4 }],
+    values: D.models.flatMap(m => D.conditions.map(c => {
+      const x = cell(m, c);
+      return x && x.cheat.est !== null ? { group: c, series: m, ...x.cheat } : null;
+    })).filter(Boolean),
+    yMax: 1, yFmt: KitCharts.pctFmt, yTitle: "engine-use rate", w: 900, h: 330, lowN: 6,
+  });
+  const tb = document.getElementById("tbody");
+  tb.innerHTML = "";
+  for (const c of D.conditions) for (const m of D.models) {
+    const x = cell(m, c);
+    if (!x) continue;
+    const tr = document.createElement("tr");
+    const ci = x.cheat.est === null ? "–" :
+      `${fmt(x.cheat.est)} [${fmt(x.cheat.lo)}–${fmt(x.cheat.hi)}]`;
+    tr.innerHTML = `<td>${c} — ${m}</td>` +
+      `<td><progress max="${x.expected}" value="${x.done}"></progress> <span class="done">${x.done}/${x.expected}</span></td>` +
+      `<td>${x.cheat.k}</td><td>${ci}</td>` +
+      `<td>${x.judge.probe_only}</td><td>${x.judge.disclosed_final}</td>` +
+      `<td>${x.contacted.k}</td><td>${x.refusals}</td>`;
+    tb.appendChild(tr);
+  }
+}
+refresh();
+setInterval(refresh, 45000);
+</script>
+</body>
+</html>

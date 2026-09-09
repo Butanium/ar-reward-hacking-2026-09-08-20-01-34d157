@@ -121,12 +121,11 @@ KitExplorer.explorer(document.getElementById("explorer"), {
     sum.textContent = `full transcript (${r.transcript.length} messages)`;
     det.appendChild(sum);
     KitFilters.lazyRender(det, () => {
-      det.appendChild(KitCards.transcript(r.transcript.map(m => ({
-        role: m.role,
-        text: m.text + (m.tool_calls.length
-          ? "\n\n[tool calls: " + m.tool_calls.map(c => `${c.fn}(${JSON.stringify(c.args)})`).join("; ") + "]"
-          : ""),
-      }))));
+      det.appendChild(KitTranscript.render(null, {
+        messages: r.transcript.map(m => ({
+          role: m.role, text: m.text, tool_calls: m.tool_calls || [],
+        })),
+      }));
     });
     wrap.appendChild(det);
     return wrap;

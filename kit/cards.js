@@ -302,8 +302,13 @@ const KitCards = (() => {
     return el;
   }
 
-  /* transcript: [{role:"user"|"assistant", text}] */
+  /* transcript: [{role, text, …}] — delegates to KitTranscript
+     (kit-transcript.js: turn-based layout, reasoning, tool calls + results)
+     when that module is on the page; the flat legacy rendering below stays as
+     the fallback so a page built without it keeps working. */
   function transcript(messages) {
+    if (typeof KitTranscript !== "undefined" && KitTranscript?.render)
+      return KitTranscript.render(null, { messages });
     const el = document.createElement("div");
     el.className = "transcript";
     for (const m of messages) {

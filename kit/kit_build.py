@@ -27,9 +27,9 @@ KIT = Path(__file__).resolve().parent
 # Order matters (tokens before consumers); every report gets every file. Reports
 # used to curate this per page, which saved ~50 kB against multi-MB payloads and
 # cost a silently missing feature whenever the kit grew.
-CSS_FILES = ["tokens.css", "layout.css", "cards.css", "charts.css"]
-JS_FILES = ["stats.js", "filters.js", "cards.js", "explorer.js", "charts.js", "toc.js",
-            "theme.js"]
+CSS_FILES = ["tokens.css", "layout.css", "cards.css", "kit-transcript.css", "charts.css"]
+JS_FILES = ["stats.js", "filters.js", "cards.js", "kit-transcript.js", "explorer.js",
+            "charts.js", "toc.js", "theme.js"]
 
 def _spellings(name: str) -> list[str]:
     bare = [f"%%{name}%%", f"__{name}__", f"{{{{{name}}}}}", name]

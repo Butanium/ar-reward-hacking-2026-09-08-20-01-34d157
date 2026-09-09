@@ -1,0 +1,178 @@
+/* clab report kit — kit-transcript.css
+   Agent-transcript display: role-tinted turn blocks (visual language borrowed
+   from tim-hua-01/cc_transcript_viewer — color-coded turn headers, collapsible
+   thinking + tool blocks — rebuilt on the kit's own tokens), a slim sticky
+   position bar, tool-call cards with attached results, clamped mono blocks.
+   All selectors kt- prefixed; role color enters through --kt-c per turn and
+   --kt-ink derives a text-safe shade of it in BOTH themes (mixing toward --ink
+   darkens on light and lightens on dark, so one rule serves both). */
+
+.kt-transcript {
+  position: relative;             /* turns' offsetTop anchors here (scroll tracking) */
+  font-family: var(--sans);
+  margin: 0.6rem 0;
+}
+
+/* ---- slim sticky position bar: "message i/N" + jump to top. Sticks to the
+   nearest scroll container, so it works both in the page and inside the
+   explorer's scrollable .sample-list. ---- */
+.kt-bar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 0.7rem;
+  font: 600 0.7rem/1 var(--sans); color: var(--muted);
+  letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+  backdrop-filter: blur(3px);
+  border-bottom: 1px solid var(--border);
+  padding: 0.35rem 0.15rem 0.3rem;
+}
+.kt-bar-pos { font-variant-numeric: tabular-nums; }
+.kt-bar-top {
+  margin-left: auto; border: none; background: none; cursor: pointer;
+  font: inherit; color: var(--muted); padding: 0.1rem 0.3rem; border-radius: 4px;
+}
+.kt-bar-top:hover { color: var(--accent); }
+
+/* ---- turns ---- */
+.kt-turn {
+  margin: 0.55rem 0;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--kt-c, var(--baseline));
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;                       /* clip the tinted head to the radius */
+  scroll-margin-top: 2.2rem;              /* anchor jumps clear the sticky bar */
+}
+.kt-system    { --kt-c: var(--muted); }
+.kt-user      { --kt-c: var(--accent); }
+.kt-assistant { --kt-c: var(--series-2); }
+.kt-tool-turn { --kt-c: var(--series-3); }
+.kt-turn { --kt-ink: color-mix(in srgb, var(--kt-c, var(--muted)) 70%, var(--ink)); }
+
+.kt-head {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.28rem 0.6rem;
+  font: 600 0.68rem/1.6 var(--sans);
+  letter-spacing: 0.07em; text-transform: uppercase;
+  color: var(--kt-ink);
+  background: color-mix(in srgb, var(--kt-c, var(--muted)) 7%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--kt-c, var(--muted)) 16%, transparent);
+}
+.kt-mi { font-weight: 400; letter-spacing: 0; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* the # deep-link: invisible at rest (a column of # reads as noise), shown on
+   turn hover and when keyboard-focused */
+.kt-anchor {
+  margin-left: auto; font-weight: 400; letter-spacing: 0;
+  color: var(--muted); text-decoration: none; opacity: 0;
+  padding: 0 0.25rem;
+}
+.kt-turn:hover .kt-anchor, .kt-anchor:focus-visible { opacity: 1; }
+.kt-anchor:hover { color: var(--accent); }
+
+.kt-parts { padding: 0.5rem 0.7rem 0.6rem; }
+.kt-parts > * + * { margin-top: 0.55rem; }
+.kt-empty { color: var(--muted); font-style: italic; font: italic 0.82rem var(--sans); }
+
+/* message prose keeps the kit's serif body (samples read as quoted prose);
+   the ptext inside brings its own clamp + affordance */
+.kt-text { font-family: var(--serif); font-size: 0.95rem; line-height: 1.5; }
+
+/* ---- reasoning ("thinking" / "reasoning summary"): dimmed violet panel,
+   collapsed to a one-line digest; body text stays quieter than answer text ---- */
+.kt-think {
+  border-left: 3px solid color-mix(in srgb, var(--series-7) 55%, transparent);
+  background: color-mix(in srgb, var(--series-7) 6%, transparent);
+  border-radius: 0 4px 4px 0;
+}
+.kt-think-head {
+  display: flex; align-items: baseline; gap: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer; user-select: none;
+  font: 600 0.68rem/1.6 var(--sans);
+  letter-spacing: 0.07em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--series-7) 75%, var(--ink));
+}
+.kt-think-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.kt-think-digest {
+  flex: 1; min-width: 0;
+  font: italic 400 0.78rem/1.5 var(--sans);
+  letter-spacing: 0; text-transform: none;
+  color: var(--ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kt-think.open .kt-think-digest { display: none; }
+.kt-think-body {
+  padding: 0 0.75rem 0.55rem;
+  font-size: 0.84rem; line-height: 1.55; color: var(--ink-2);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+/* ---- tool call card: mono fn-name header (tinted green), args + attached
+   result in the body; the header folds the whole card for skimming ---- */
+.kt-call {
+  border: 1px solid var(--border); border-radius: 4px;
+  background: var(--surface); overflow: hidden;
+}
+.kt-call-head {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.3rem 0.6rem;
+  cursor: pointer; user-select: none;
+  background: color-mix(in srgb, var(--series-3) 8%, transparent);
+  font: 0.76rem/1.6 var(--mono);
+  color: color-mix(in srgb, var(--series-3) 65%, var(--ink));
+}
+.kt-call-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.kt-fn { font-weight: 700; }
+.kt-call-sum {
+  flex: 1; min-width: 0; font-weight: 400; color: var(--muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kt-chev {
+  flex: none; font-size: 0.58rem; color: var(--muted);
+  font-family: var(--sans); transform: translateY(-1px);
+}
+.kt-call-body { padding: 0.45rem 0.6rem 0.55rem; border-top: 1px solid var(--border); }
+.kt-call-body > * + * { margin-top: 0.4rem; }
+.kt-call.collapsed .kt-call-body { display: none; }
+
+/* compact scalar args as key: value rows */
+.kt-kv { font: 0.74rem/1.6 var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.kt-kv b { color: var(--ink); font-weight: 600; }
+/* tiny label over a multi-line arg block / the output block */
+.kt-arg-lab, .kt-result-lab {
+  font: 600 0.64rem/1.5 var(--sans);
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.15rem;
+}
+.kt-arg-lab + .kt-clip, .kt-result-lab + .kt-clip { margin-top: 0; }
+
+/* ---- clamped mono block (args scripts, tool outputs): body renders only the
+   first N lines until expanded (kit-transcript.js swaps the text), affordance
+   on its own row like cards.css's .pt-more ---- */
+.kt-clip { min-width: 0; }
+.kt-pre {
+  margin: 0; padding: 0.45rem 0.6rem;
+  background: color-mix(in srgb, var(--ink) 4%, var(--paper));
+  border: 1px solid var(--border); border-radius: 4px;
+  font: 0.74rem/1.5 var(--mono); color: var(--ink);
+  white-space: pre-wrap; overflow-wrap: anywhere;
+  tab-size: 4;
+}
+.kt-clip.clipped:not(.open) .kt-pre {
+  /* subtle cut: fade the last clipped line so the truncation is visible even
+     when the text happens to end mid-paragraph */
+  -webkit-mask-image: linear-gradient(#000 calc(100% - 1.4em), rgba(0,0,0,0.35));
+          mask-image: linear-gradient(#000 calc(100% - 1.4em), rgba(0,0,0,0.35));
+}
+.kt-clip-more {
+  font: 0.72rem/1.5 var(--sans); color: var(--muted);
+  padding: 0.2rem 0.1rem 0; cursor: pointer; user-select: none;
+  width: fit-content;
+}
+.kt-clip-more:hover { color: var(--accent); }
+.kt-clip-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* tool output block: green-edged so call → result reads as one unit */
+.kt-result .kt-pre { border-left: 3px solid color-mix(in srgb, var(--series-3) 45%, transparent); }
+.kt-result-lab .num { color: var(--ink-2); }
