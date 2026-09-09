@@ -525,9 +525,16 @@ const KitCharts = (() => {
        family of segments (e.g. the merging categories) reads as a group while
        staying individually distinguishable.
      lo/hi (fractions, e.g. bootstrap CI on the segment's share) → shown in the
-       tooltip; the guidelines want a CI on every aggregated share. */
+       tooltip; the guidelines want a CI on every aggregated share.
+     totals: [{group, est, lo, hi}] (optional) → CI on the TOTAL of the stack,
+       drawn as a whisker (line + serifs, same ink style as groupedBars' CIs)
+       at the bar's x-center, on top of the segments, and appended to the
+       segments' tooltips. UNITS: est/lo/hi are in the same units as the y
+       scale the stack renders in — FRACTIONS 0..1 when percent (the default;
+       the axis multiplies by 100 for display), RAW COUNTS when percent:
+       false. With percent: false the y ceiling grows to fit the whiskers. */
   function stackedBars(container, spec) {
-    const { groups, segments, values, percent = true } = spec;
+    const { groups, segments, values, percent = true, totals = [] } = spec;
     const groupFull = spec.groupFull || (g => g);
     const groupLabel = spec.groupLabel || (g => g);
     const LFS = spec.labelSize ?? 11;   /* see groupedBars */
@@ -540,8 +547,11 @@ const KitCharts = (() => {
     const bAdj = Math.max(m0.b, neededB);
     const fSpec = { ...spec, m: rotate ? { ...m0, b: bAdj } : m0,
       h: rotate ? (spec.h ?? 300) + (bAdj - m0.b) : spec.h,
-      yMin: 0, yMax: percent ? 1 : Math.max(...groups.map(g => values.filter(v => v.group === g).reduce((s, v) => s + v.count, 0))), yFmt: percent ? v => Math.round(v * 100) + "%" : v => v };
+      yMin: 0, yMax: percent ? 1 : Math.max(...groups.map(g => values.filter(v => v.group === g).reduce((s, v) => s + v.count, 0)),
+        ...totals.map(t => t.hi).filter(Number.isFinite)), yFmt: percent ? v => Math.round(v * 100) + "%" : v => v };
     const f = frame(container, fSpec);
+    /* one decimal for fraction totals; counts stay as given */
+    const totFmt = percent ? (v => (v * 100).toFixed(1) + "%") : (v => String(Math.round(v * 10) / 10));
     const defs = el("defs");
     f.svg.appendChild(defs);
     const hatchFor = (color, shape) => makeHatch(defs, color, shape);
@@ -559,6 +569,10 @@ const KitCharts = (() => {
       }
       const rows = values.filter(v => v.group === gname);
       const total = rows.reduce((s, v) => s + v.count, 0) || 1;
+      const tot = totals.find(t => t.group === gname);
+      const hasTot = tot && Number.isFinite(tot.lo) && Number.isFinite(tot.hi);
+      const totTip = hasTot ? `<br>total ${totFmt(tot.est)} <span class="tip-head">95% CI [${totFmt(tot.lo)}, ${totFmt(tot.hi)}]</span>` : "";
+      const totA11y = hasTot ? `; total ${totFmt(tot.est)}, 95% CI ${totFmt(tot.lo)} to ${totFmt(tot.hi)}` : "";
       let acc = 0;
       segments.forEach((s, si) => {
         const d = rows.find(v => v.segment === s.name);
@@ -570,8 +584,8 @@ const KitCharts = (() => {
           { fill: s.hatch ? hatchFor(color, typeof s.hatch === "string" ? s.hatch : "/") : color });
         const pct = Math.round((d.count / total) * 1000) / 10;
         const ci = Number.isFinite(d.lo) ? ` [${(d.lo * 100).toFixed(1)}, ${(d.hi * 100).toFixed(1)}]` : "";
-        a11y(rect, `${groupFull(gname)}, ${s.name}: ${pct}% (${d.count}/${total})${ci}`);
-        bindTip(rect, `<span class="tip-head">${groupFull(gname)} · ${s.name}</span><br>${pct}%${ci} <span class="tip-head">(${d.count}/${total})</span>`);
+        a11y(rect, `${groupFull(gname)}, ${s.name}: ${pct}% (${d.count}/${total})${ci}${totA11y}`);
+        bindTip(rect, `<span class="tip-head">${groupFull(gname)} · ${s.name}</span><br>${pct}%${ci} <span class="tip-head">(${d.count}/${total})</span>${totTip}`);
         /* onSegmentClick(value, segment, groupName): opt-in, mirrors
            groupedBars' onBarClick — a segment IS a set of rows, so clicking it
            can load exactly those. No enlarged hit zone here: unlike a 2% bar, a
@@ -586,6 +600,14 @@ const KitCharts = (() => {
         f.svg.appendChild(rect);
         acc += v;
       });
+      /* total-of-stack CI whisker — appended AFTER the segments so it draws on
+         top; same .whisker ink (var(--ink-2)) + serifs as groupedBars' CIs */
+      if (hasTot) {
+        const cx = gx + bwid / 2;
+        f.svg.appendChild(el("line", { x1: cx, x2: cx, y1: f.y(tot.lo), y2: f.y(tot.hi), class: "whisker" }));
+        f.svg.appendChild(el("line", { x1: cx - 3, x2: cx + 3, y1: f.y(tot.lo), y2: f.y(tot.lo), class: "whisker" }));
+        f.svg.appendChild(el("line", { x1: cx - 3, x2: cx + 3, y1: f.y(tot.hi), y2: f.y(tot.hi), class: "whisker" }));
+      }
     });
     /* legendItems mirrors groupedBars: override the auto segment-legend, or
        pass [] to suppress it (e.g. the top chart of an aligned pair) */
@@ -599,15 +621,23 @@ const KitCharts = (() => {
      comparison instead of two charts the eye has to travel between.
      spec: { groups, subs: [{name, hatch}], segments: [{name, color, seriesIndex}],
        values: [{group, sub, segment, count, lo, hi}], percent = true,
+       totals: [{group, sub, est, lo, hi}],
        groupLabel, groupFull, subFull, onSegmentClick(value, segment, group, sub),
        subOp(total, group, sub), legendItems, w, h, m, labelSize, rotateLabels }
+     totals (optional): CI on the TOTAL of a (group, sub) stack, drawn as a
+       whisker (line + serifs, same ink style as groupedBars' CIs) at that
+       sub-bar's x-center, on top of the segments, and appended to the
+       segments' tooltips. UNITS: est/lo/hi are in the same units as the y
+       scale the stack renders in — FRACTIONS 0..1 when percent (the default;
+       the axis multiplies by 100 for display), RAW COUNTS when percent:
+       false. With percent: false the y ceiling grows to fit the whiskers.
      subOp is the low-support affordance a percent stack otherwise can't have: a
      mix of 3 draws and a mix of 30 draw the same bar, so the caller fades the
      thin ones (the counts are already in the tooltip).
      Each sub-bar normalizes to its OWN total when percent (the default): the two
      conditions rarely have the same n, and the question is the mix, not the count. */
   function groupedStackedBars(container, spec) {
-    const { groups, subs, segments, values, percent = true } = spec;
+    const { groups, subs, segments, values, percent = true, totals = [] } = spec;
     const groupFull = spec.groupFull || (g => g);
     const groupLabel = spec.groupLabel || (g => g);
     const subFull = spec.subFull || (s => s.name);
@@ -624,9 +654,12 @@ const KitCharts = (() => {
     const fSpec = { ...spec, m: rotate ? { ...m0, b: bAdj } : m0,
       h: rotate ? (spec.h ?? 300) + (bAdj - m0.b) : spec.h,
       yMin: 0,
-      yMax: percent ? 1 : Math.max(...groups.flatMap(g => subs.map(s => totalOf(g, s.name)))),
+      yMax: percent ? 1 : Math.max(...groups.flatMap(g => subs.map(s => totalOf(g, s.name))),
+        ...totals.map(t => t.hi).filter(Number.isFinite)),
       yFmt: percent ? v => Math.round(v * 100) + "%" : v => v };
     const f = frame(container, fSpec);
+    /* one decimal for fraction totals; counts stay as given (see stackedBars) */
+    const totFmt = percent ? (v => (v * 100).toFixed(1) + "%") : (v => String(Math.round(v * 10) / 10));
     const defs = el("defs");
     f.svg.appendChild(defs);
     const bw = f.iw / groups.length;
@@ -651,8 +684,34 @@ const KitCharts = (() => {
         const x = gx + sui * (sw + gap);
         const rows = values.filter(v => v.group === gname && v.sub === sub.name);
         const total = rows.reduce((s, v) => s + v.count, 0);
-        if (!total) return;   /* absent, not zero — draw nothing */
+        const tot = totals.find(t => t.group === gname && t.sub === sub.name);
+        const hasTot = tot && Number.isFinite(tot.lo) && Number.isFinite(tot.hi);
+        const drawTotWhisker = () => {
+          const cx = x + sw / 2;
+          f.svg.appendChild(el("line", { x1: cx, x2: cx, y1: f.y(tot.lo), y2: f.y(tot.hi), class: "whisker" }));
+          f.svg.appendChild(el("line", { x1: cx - 3, x2: cx + 3, y1: f.y(tot.lo), y2: f.y(tot.lo), class: "whisker" }));
+          f.svg.appendChild(el("line", { x1: cx - 3, x2: cx + 3, y1: f.y(tot.hi), y2: f.y(tot.hi), class: "whisker" }));
+        };
+        if (!total) {
+          /* Empty stack: no segments to fill. A cell with NO total CI is truly
+             absent (the model was never run in this arm) — draw nothing, as
+             before. But a genuine 0/n cell carries a total CI (a 0/n Wilson
+             interval still has an informative upper bound), so draw that whisker
+             rather than leaving a zero bar silently CI-less — matching groupedBars. */
+          if (hasTot) {
+            const cx = x + sw / 2;
+            const hit = el("rect", { x: x, y: f.y(tot.hi), width: sw,
+              height: Math.max(0, f.y(0) - f.y(tot.hi)), fill: "transparent" });
+            a11y(hit, `${groupFull(gname)} · ${subFull(sub)}: 0% (0/${tot.n ?? "n"}); total 95% CI ${totFmt(tot.lo)} to ${totFmt(tot.hi)}`);
+            bindTip(hit, `<span class="tip-head">${groupFull(gname)} · ${subFull(sub)}</span><br>0%<br>total ${totFmt(tot.est)} <span class="tip-head">95% CI [${totFmt(tot.lo)}, ${totFmt(tot.hi)}]</span>`);
+            f.svg.appendChild(hit);
+            drawTotWhisker();
+          }
+          return;
+        }
         const op = spec.subOp ? spec.subOp(total, gname, sub) : 1;
+        const totTip = hasTot ? `<br>total ${totFmt(tot.est)} <span class="tip-head">95% CI [${totFmt(tot.lo)}, ${totFmt(tot.hi)}]</span>` : "";
+        const totA11y = hasTot ? `; total ${totFmt(tot.est)}, 95% CI ${totFmt(tot.lo)} to ${totFmt(tot.hi)}` : "";
         let acc = 0;
         segments.forEach((s, si) => {
           const d = rows.find(v => v.segment === s.name);
@@ -667,8 +726,8 @@ const KitCharts = (() => {
           const pct = Math.round((d.count / total) * 1000) / 10;
           const ci = Number.isFinite(d.lo) ? ` [${(d.lo * 100).toFixed(1)}, ${(d.hi * 100).toFixed(1)}]` : "";
           const head = `${groupFull(gname)} · ${subFull(sub)} · ${s.name}`;
-          a11y(rect, `${head}: ${pct}% (${d.count}/${total})${ci}`);
-          bindTip(rect, `<span class="tip-head">${head}</span><br>${pct}%${ci} <span class="tip-head">(${d.count}/${total})</span>`);
+          a11y(rect, `${head}: ${pct}% (${d.count}/${total})${ci}${totA11y}`);
+          bindTip(rect, `<span class="tip-head">${head}</span><br>${pct}%${ci} <span class="tip-head">(${d.count}/${total})</span>${totTip}`);
           if (spec.onSegmentClick) {
             rect.style.cursor = "pointer";
             const fire = () => spec.onSegmentClick(d, s, gname, sub);
@@ -680,6 +739,14 @@ const KitCharts = (() => {
           f.svg.appendChild(rect);
           acc += v;
         });
+        /* total-of-stack CI whisker — appended AFTER the segments so it draws
+           on top; same .whisker ink (var(--ink-2)) + serifs as groupedBars */
+        if (hasTot) {
+          const cx = x + sw / 2;
+          f.svg.appendChild(el("line", { x1: cx, x2: cx, y1: f.y(tot.lo), y2: f.y(tot.hi), class: "whisker" }));
+          f.svg.appendChild(el("line", { x1: cx - 3, x2: cx + 3, y1: f.y(tot.lo), y2: f.y(tot.lo), class: "whisker" }));
+          f.svg.appendChild(el("line", { x1: cx - 3, x2: cx + 3, y1: f.y(tot.hi), y2: f.y(tot.hi), class: "whisker" }));
+        }
       });
     });
     legend(container, spec.legendItems || segments.map((s, i) =>
