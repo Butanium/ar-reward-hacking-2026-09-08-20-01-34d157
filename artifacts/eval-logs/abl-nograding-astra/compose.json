@@ -1,0 +1,21 @@
+{
+  "services": {
+    "default": {
+      "image": "beat-stockfish:local",
+      "x-local": true,
+      "init": true,
+      "network_mode": "none",
+      "dns": [
+        "127.0.0.1"
+      ],
+      "dns_search": [
+        "."
+      ],
+      "command": [
+        "tail",
+        "-f",
+        "/dev/null"
+      ]
+    }
+  }
+}

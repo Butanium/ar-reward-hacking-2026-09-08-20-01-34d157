@@ -1,0 +1,61 @@
+/* clab report kit — charts.css */
+.kit-chart { font-family: var(--sans); }
+.kit-chart svg { display: block; width: 100%; height: auto; }
+.kit-chart text { fill: var(--ink-2); font-size: 11px; }
+/* axis titles read at ~the legend's size once the SVG is scaled up to its
+   container (viewBox 720 → ~1000px wide ≈ ×1.4, so 11.5 ≈ the legend's 1rem) */
+.kit-chart .axis-title { fill: var(--muted); font-size: 11.5px; letter-spacing: 0.04em; }
+.kit-chart .gridline { stroke: var(--grid); stroke-width: 1; }
+.kit-chart .baseline { stroke: var(--baseline); stroke-width: 1; }
+.kit-chart .refline { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 3; }
+.kit-chart .whisker { stroke: var(--ink-2); stroke-width: 1.4; }
+/* CI on an overlay dot: ink, not the dot's hue — the interval reaches down into
+   the bar, and a same-hue line disappears against the fill. Thinner and lighter
+   than .whisker so the bar's own CI still reads as the primary one. */
+.kit-chart .whisker-dot { stroke: var(--ink-2); stroke-width: 1.1; opacity: 0.7; }
+.kit-chart .mark { cursor: default; }
+.kit-chart .mark:focus-visible { outline: none; stroke: var(--ink); stroke-width: 2.5; }
+.kit-chart .direct-label { fill: var(--ink); font-weight: 600; }
+.kit-chart .canvas-warn { fill: var(--warn-ink); font-size: 10.5px; }
+.kit-chart .low-n { opacity: 0.45; }
+.kit-chart .halo { opacity: 0; fill-opacity: 0.13; }
+@media (prefers-reduced-motion: no-preference) {
+  .kit-chart .mark { transition: opacity 120ms; }
+  .kit-chart .halo { transition: opacity 120ms; }
+}
+
+.kit-legend {
+  display: flex; flex-wrap: wrap; gap: 0.35rem 1.2rem; align-items: center;
+  font-family: var(--sans); font-size: 1rem; color: var(--ink-2);
+  margin: 0.5rem 0;
+}
+.kit-legend .sw { display: inline-block; width: 13px; height: 13px; border-radius: 3px; margin-right: 0.35em; vertical-align: -2px; }
+.kit-legend .glyph { margin-right: 0.3em; font-size: 1.15em; vertical-align: -1px; }
+/* interactive legend: an entry toggles its series. The padding is cancelled by
+   an equal negative margin so a live legend sits exactly where a static one did.
+   Off = struck through and faded; a dimmed swatch alone doesn't say "hidden"
+   (and line-through doesn't reach into the inline-block swatch, so it stays crisp). */
+.kit-legend-live > span {
+  cursor: pointer; border-radius: 4px;
+  padding: 0 0.25rem; margin: 0 -0.25rem;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+/* an accent tint, not var(--surface): a legend sits on whatever the figure's box
+   is, and half the reports mount charts on the surface color already */
+.kit-legend-live > span:hover {
+  color: var(--ink); background: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+.kit-legend-live > span.off { opacity: 0.42; text-decoration: line-through; }
+/* sharedLegend(): one legend for a row of panels, sitting under all of them.
+   Centred, and on one line as long as the row is wide enough for it. */
+.kit-legend-row .kit-legend { justify-content: center; margin: 0.15rem 0 0; }
+.kit-legend-live > span:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.kit-tip {
+  position: fixed; z-index: 50; pointer-events: none; display: none;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--baseline); border-radius: 5px;
+  padding: 0.4rem 0.6rem; font: 0.78rem/1.45 var(--sans);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.12); max-width: 340px;
+}
+.kit-tip .tip-head { color: var(--muted); }

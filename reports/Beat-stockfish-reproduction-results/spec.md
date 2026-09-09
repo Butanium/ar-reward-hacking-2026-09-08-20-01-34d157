@@ -1,0 +1,1 @@
+Preliminary reproduction of the Goodhart Labs beat-stockfish honeypot with the original prompt: cheat (engine-use) rate, engine_contacted, score, and refusals for 10 rollouts each of Fable 5.1 and GPT-6-Astra, with brief qualitative notes (e.g. disclosure of engine use) and links/examples from transcripts.

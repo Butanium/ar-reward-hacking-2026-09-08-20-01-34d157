@@ -1,0 +1,264 @@
+/* clab report kit — layout.css
+   Page shell, prose, callouts, folds, figures, tables, rubric display, print.
+   Serif prose / sans UI-chrome split: the article reads like an essay, the
+   instrument panel (controls, badges, chart text) stays in the system sans. */
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 1.02rem/1.62 var(--serif);
+}
+
+/* --- page grid: sticky sidebar (global filters) + content column --- */
+.page {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 2rem;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+.page > .sidebar { position: relative; }
+.sidebar .panel {
+  position: sticky;
+  top: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+}
+.sidebar .panel label { display: block; color: var(--ink-2); margin: 0.6rem 0 0.2rem; }
+.sidebar .panel .readout { color: var(--muted); font-size: 0.8rem; margin-top: 0.35rem; }
+.sidebar .panel { max-height: calc(100vh - 2rem); overflow-y: auto; }
+/* form controls in the sidebar match the explorer's (.ex-controls) chrome */
+.sidebar .panel select, .sidebar .panel input[type="search"], .sidebar .panel button {
+  font: inherit; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--baseline); border-radius: 4px;
+  padding: 0.25rem 0.45rem; max-width: 100%;
+}
+.sidebar .panel button { cursor: pointer; background: var(--surface); }
+.sidebar .panel button:hover { border-color: var(--accent); color: var(--accent); }
+input[type="range"] { accent-color: var(--accent); }
+/* a later section inside the same sticky panel (e.g. controls under a TOC) */
+.sidebar .side-sec { border-top: 1px solid var(--grid); margin-top: 0.9rem; padding-top: 0.75rem; }
+
+/* --- panel head: the panel's kicker, with the theme cycler pushed right --- */
+.sidebar .panel-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+}
+/* .sidebar .panel button (padding, border, surface fill) outranks a bare
+   .kit-theme — qualify it back down to a bare icon */
+.sidebar .panel button.kit-theme, .kit-theme {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; padding: 0; margin: -2px -2px -2px 0;
+  background: none; border: 1px solid transparent; border-radius: 5px;
+  color: var(--muted); cursor: pointer;
+}
+.sidebar .panel button.kit-theme:hover, .kit-theme:hover {
+  color: var(--accent); border-color: var(--border); background: var(--paper);
+}
+/* stroked glyphs, not ☀/☾ text: font coverage for those varies and they render
+   as a blob at sidebar size (same reason the TOC caret is an svg) */
+.kit-theme svg {
+  width: 15px; height: 15px; fill: none; stroke: currentColor;
+  stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round;
+}
+
+/* --- sidebar table of contents (see toc.js) --- */
+.sidebar .toc { display: block; margin: 0.45rem 0 0.2rem; }
+.sidebar .toc a {
+  display: block; color: var(--ink-2); text-decoration: none;
+  padding: 0.18rem 0 0.18rem 0.55rem; border-left: 2px solid var(--grid);
+  line-height: 1.35;
+}
+.sidebar .toc a.sub { padding-left: 1.25rem; font-size: 0.94em; color: var(--muted); }
+.sidebar .toc a.child { padding-left: 1.6rem; font-size: 0.92em; color: var(--muted); }
+.sidebar .toc a:hover { color: var(--accent); }
+.sidebar .toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+/* A group's parent line. The chevron sits inside the rail, in the column the
+   section numbers use — it is the "Appendix" line's numeral, so the label after
+   it lands where "Reasoning vs answer" lands after "1 · " (Clément: on the right
+   of the bar, like the numbers). The rail moves off the link onto the row so it
+   stays part of the unbroken vertical line. */
+.sidebar .toc-grouphead {
+  display: flex; align-items: center; position: relative;
+  border-left: 2px solid var(--grid); padding-left: 0.55rem;
+}
+.sidebar .toc-grouphead > a { flex: 1; min-width: 0; border-left: 0; padding-left: 0; }
+.sidebar .toc-grouphead:has(a.active) { border-left-color: var(--accent); }
+/* .sidebar .panel button styles every button in the panel — outrank it.
+   Absolutely positioned inside the numeral column, so its generous padding buys
+   a 22px hit target without widening that column. */
+.sidebar .toc-grouphead > a { margin-left: 1.16rem; }   /* = the width of "1 · " */
+/* left edge flush with the digits (padding 0.24rem is subtracted back out). It
+   is not centred in the numeral column: rotating 90° on open makes the chevron
+   as wide as it is tall, and centred it then crowds the label. */
+.sidebar .toc .toc-caret {
+  position: absolute; left: 0.44rem; top: 50%; translate: 0 -50%;
+  width: 0.44rem; height: 0.72rem; box-sizing: content-box;
+  border: 0; border-radius: 0; background: none; cursor: pointer;
+  padding: 0.3rem 0.24rem; margin: 0;
+  color: var(--muted); transition: color 0.15s ease;
+}
+.sidebar .toc .toc-caret svg {
+  width: 100%; height: 100%; display: block;
+  fill: none; stroke: currentColor; stroke-width: 1.5;
+  stroke-linecap: round; stroke-linejoin: round;
+  transition: transform 0.18s ease;
+}
+/* the chevron answers to a hover anywhere on its line — at 7px it is not a
+   target anyone hunts for deliberately */
+.sidebar .toc-grouphead:hover .toc-caret,
+.sidebar .toc .toc-caret:hover { color: var(--accent); border-color: transparent; }
+.sidebar .toc .toc-caret.open svg { transform: rotate(90deg); }
+/* the panel scroll-clips at its padding edge and the chevron hangs right up
+   against it, so the focus ring is drawn inside the button rather than around */
+.sidebar .toc .toc-caret:focus-visible { outline-offset: -1px; border-radius: 3px; }
+
+/* the child box collapses via 0fr→1fr, so the fold animates without anyone
+   measuring a height */
+.sidebar .toc-children {
+  display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.18s ease;
+}
+.sidebar .toc-children > div { overflow: hidden; visibility: hidden; transition: visibility 0s 0.18s; }
+.sidebar .toc-children.open { grid-template-rows: 1fr; }
+.sidebar .toc-children.open > div { visibility: visible; transition-delay: 0s; }
+.content { min-width: 0; }
+.content > * { max-width: 720px; }           /* ~70ch reading column */
+.content > .wide, .content > .page-wide { max-width: none; }
+/* a fold that carries a wide figure: the fold breaks out, its prose stays a column */
+.content > details.wide { max-width: none; }
+details.wide > :not(figure) { max-width: 720px; }
+.wide { width: min(1000px, 100%); }
+@media (max-width: 1100px) {
+  .page { grid-template-columns: 1fr; }
+  .sidebar .panel { position: static; }
+}
+
+/* --- headings & prose --- */
+h1 { font-size: 1.9rem; line-height: 1.2; text-wrap: balance; margin: 0.4rem 0 0.3rem; }
+h2 {
+  font-size: 1.35rem; line-height: 1.25; text-wrap: balance;
+  border-top: 1px solid var(--grid);
+  padding-top: 1.1rem; margin: 2.2rem 0 0.7rem;
+}
+h3 { font-size: 1.08rem; margin: 1.6rem 0 0.5rem; }
+h2, h3 { scroll-margin-top: 0.8rem; }
+/* a section heading is a link to itself (toc.js): clicking it copies the deep
+   link, since the reader of a framed report can't get one from the address bar.
+   The # is the visible affordance and the keyboard control; it stays hidden
+   until the heading is hovered so the page doesn't read as a wiki. */
+h1.h-linked, h2.h-linked, h3.h-linked, h4.h-linked { cursor: pointer; }
+.h-link {
+  margin-left: 0.4em; padding: 0 0.15em; vertical-align: 0.06em;
+  font: 600 0.72em/1 var(--sans); color: var(--muted);
+  background: none; border: 0; border-radius: 3px; cursor: pointer;
+  opacity: 0; transition: opacity 0.12s ease;
+}
+.h-linked:hover .h-link, .h-link:focus-visible, .h-link.done { opacity: 1; }
+.h-link:hover { color: var(--accent); }
+.h-link.done { color: var(--good-text); }
+.h-link.done::after { content: " " attr(data-say); font-weight: 500; }
+@media (hover: none) { .h-link { opacity: 0.55; } }
+@media print { .h-link { display: none; } }
+/* the landing flash for a KitExplorer.hashNav jump: a chart click scrolls the
+   reader somewhere else on a long page, and without it there is nothing saying
+   the list under them is now filtered to the mark they clicked. Add/remove the
+   class around a `void el.offsetWidth` to restart the animation on re-click. */
+.hi-flash { animation: hi-flash 1.2s ease-out; }
+@keyframes hi-flash { 0% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .hi-flash { animation: none; } }
+a { color: var(--accent); }
+code { font-family: var(--mono); font-size: 0.86em; background: var(--surface); border: 1px solid var(--border); border-radius: 3px; padding: 0 0.25em; }
+.byline { color: var(--muted); font-size: 0.9rem; margin: 0 0 1.4rem; }
+.kicker {
+  font: 600 0.72rem/1 var(--sans);
+  letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+}
+
+/* --- callouts --- */
+.tldr {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0.9rem 1.15rem; margin: 1.2rem 0;
+}
+.tldr ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+.note {
+  background: var(--warn-bg); border-left: 3px solid var(--warning);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 0.7rem 1rem; margin: 1rem 0; font-size: 0.95rem;
+}
+.note .kicker { color: var(--warn-ink); }
+.lesson {
+  background: var(--lesson-bg); border-left: 3px solid var(--critical);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 0.7rem 1rem; margin: 1rem 0; font-size: 0.95rem;
+}
+.warn-text { color: var(--warn-ink); }
+
+/* --- folds --- */
+details {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface); padding: 0 1rem; margin: 0.9rem 0;
+}
+details > summary {
+  cursor: pointer; padding: 0.6rem 0;
+  font-family: var(--sans); font-size: 0.9rem; color: var(--ink-2);
+}
+details[open] > summary { border-bottom: 1px solid var(--grid); margin-bottom: 0.7rem; }
+details > :last-child { margin-bottom: 0.9rem; }
+
+/* --- figures --- */
+figure { margin: 1.4rem 0; }
+figure > img, figure > svg { max-width: 100%; height: auto; }
+/* captions carry real content in these reports (method, denominators, how to
+   read the figure) — they read at body size and body ink, not as fine print */
+figcaption { color: var(--ink); font-size: inherit; line-height: inherit; margin-top: 0.5rem; }
+.overflow-x { overflow-x: auto; }
+
+/* --- tables --- */
+table { border-collapse: collapse; font-family: var(--sans); font-size: 0.88rem; }
+th, td { border-bottom: 1px solid var(--grid); padding: 0.35rem 0.7rem; text-align: left; }
+th { color: var(--ink-2); font-weight: 600; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tr.subhead td { background: var(--surface); font-weight: 600; }
+
+/* --- judge rubric / prompt display: formatted prose, NOT a code dump ---
+   Render rubrics as readable structured text: serif body, criterion names as
+   small sans headings, score anchors as a definition list. Mono is reserved
+   for literal template slots like {response}. */
+.rubric { font-size: 0.94rem; line-height: 1.55; }
+.rubric h4, .rubric .crit {
+  font: 600 0.8rem/1.3 var(--sans);
+  letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-2);
+  margin: 1rem 0 0.3rem;
+}
+.rubric dl { margin: 0.3rem 0; }
+.rubric dt { float: left; clear: left; width: 3.2rem; font-family: var(--sans); font-weight: 600; color: var(--ink-2); }
+.rubric dd { margin-left: 3.8rem; margin-bottom: 0.25rem; }
+.rubric .slot { font-family: var(--mono); font-size: 0.85em; color: var(--accent); }
+
+/* --- footer --- */
+.foot { color: var(--muted); font-size: 0.85rem; border-top: 1px solid var(--grid); margin-top: 2.5rem; padding-top: 0.8rem; }
+
+/* --- motion & focus --- */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+/* --- print: partial recovery of PDF export --- */
+@media print {
+  body { background: #fff; color: #000; font-size: 11pt; }
+  .page { display: block; max-width: none; padding: 0; }
+  .sidebar, .no-print { display: none; }
+  details { border: none; padding: 0; }
+  details:not([open]) { display: none; }     /* closed folds stay out of print */
+  h2, h3, h4 { break-after: avoid; }
+  figure { break-inside: avoid; }
+  p { orphans: 3; widows: 3; }
+}

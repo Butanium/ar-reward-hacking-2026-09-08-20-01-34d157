@@ -1,0 +1,6 @@
+# auto-researcher: never back up private/runtime files
+.manager/
+.runtime/
+*.sock
+repos/
+workspace/beat-stockfish/
