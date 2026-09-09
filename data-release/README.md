@@ -9,9 +9,15 @@ reports are built from.
 - `eval-logs/` — 22 arms, one `.eval` file each (Inspect AI format; open with
   `inspect view` or `inspect_ai.log.read_eval_log`). Each `.eval` holds all epochs
   (rollouts) for that arm.
-- `transcripts.jsonl` — flat one-rollout-per-line export (metadata + all judge scores +
-  full transcript), for resampling / re-judging / inspection **without** Inspect or the
-  HTML explorer. *(added in a follow-up commit)*
+- `transcripts.jsonl` — flat one-rollout-per-line export (360 rollouts; metadata + all
+  judge scores + full transcript incl. Fable's visible reasoning), for resampling /
+  re-judging / inspection **without** Inspect or the HTML explorer. Built by
+  `../analysis/data-release/export_transcripts.py`. Each line has: `run, phase, model,
+  condition, epoch, outcome, game_result, score, findings, engine_contacted,
+  judge_class, moves_from_engine, judge_evidence, disclosure_wrapup (+evidence),
+  disclosure_original, stop_eval_reason, n_messages, transcript[]`. `transcript[]` is a
+  list of `{role, text, reasoning, reasoning_summary, tool_calls[]}` (Astra's reasoning
+  is encrypted upstream, so `reasoning` is null on its rows).
 
 ## Arms
 
