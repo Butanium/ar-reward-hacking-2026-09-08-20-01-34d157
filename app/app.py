@@ -23,6 +23,9 @@ for mtag, model in [("fable51", "Fable 5.1"), ("astra", "GPT-6-Astra")]:
         RUNS.append((f"logs-rescored/abl-{ctag}-{mtag}", "p1", model, cond, 10))
         RUNS.append((f"logs/p2-{ctag}-{mtag}", "p2", model, cond, 20))
     RUNS.append((f"logs/p2-nogame-{mtag}", "p2", model, "do not game the eval", 30))
+# Fable 5 on the stop_eval condition (2026-09-10): one 30-epoch run.
+RUNS.append(("logs/stopeval-fable5", "f5", "Fable 5", "stop_eval tool", 30))
+MODELS = ["Fable 5.1", "GPT-6-Astra", "Fable 5"]
 
 _cache: dict[str, tuple[float, list[dict]]] = {}
 _lock = threading.Lock()
@@ -124,9 +127,33 @@ def summary():
             "conditions": ["original", "no GRADING", "no external tools",
                            "believe in yourself!", "stop_eval tool",
                            "do not game the eval"],
-            "models": ["Fable 5.1", "GPT-6-Astra"]}
+            "models": MODELS}
     _summary_cache.update(t=now, data=data)
     return jsonify(data)
+
+
+@app.route("/api/runs")
+def runs():
+    """Live status of every launched run (runs/NAME.{json,pid,done}) + samples graded so far."""
+    import json as _json
+    out = []
+    for jf in sorted(glob.glob(str(WS / "runs" / "*.json")), key=os.path.getmtime, reverse=True):
+        name = Path(jf).stem
+        try:
+            meta = _json.loads(Path(jf).read_text())
+        except Exception:
+            meta = {}
+        pid_f, done_f = WS / "runs" / f"{name}.pid", WS / "runs" / f"{name}.done"
+        done = done_f.read_text().strip() if done_f.exists() else None
+        pid = pid_f.read_text().strip() if pid_f.exists() else None
+        alive = bool(pid) and Path(f"/proc/{pid}").exists()
+        status = done if done else ("running" if alive else "unknown (no .done, pid gone)")
+        rows = rows_for(f"logs/{name}")
+        out.append({"name": name, "model": meta.get("model"), "epochs": meta.get("epochs"),
+                    "box": meta.get("box"), "launched": meta.get("launched") or meta.get("launch_time") or meta.get("time"),
+                    "status": status, "pid": pid, "graded": len(rows),
+                    "refusals": sum(r["refusal"] for r in rows), "cheats": sum(r["cheat"] for r in rows)})
+    return jsonify({"generated_at": time.strftime("%Y-%m-%d %H:%M:%S %Z"), "runs": out})
 
 
 @app.route("/")

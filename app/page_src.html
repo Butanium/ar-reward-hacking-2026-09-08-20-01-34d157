@@ -25,7 +25,11 @@ progress { width: 90px; height: 10px; }
   <table class="live"><thead>
     <tr><th>condition / model</th><th>done</th><th>cheat</th><th>rate [95% CI]</th><th>probe-only</th><th>disclosed (final)</th><th>contacted</th><th>refusals</th></tr>
   </thead><tbody id="tbody"></tbody></table>
-  <p class="foot">cheat = shipped grader's engine-search finding. probe-only / disclosed = GLM-5.3-flash judge (phase-1 backfilled, phase-2 native; in-flight samples may not be judged yet). Baselines are n=10 (phase 1 only); ablation arms fill to n=30.</p>
+  <h2>Runs</h2>
+  <table class="live"><thead>
+    <tr><th>run</th><th>model</th><th>status</th><th>graded</th><th>cheats</th><th>refusals</th></tr>
+  </thead><tbody id="runs-tbody"></tbody></table>
+  <p class="foot">cheat = shipped grader's engine-search finding. probe-only / disclosed = GLM-5.3-flash judge (phase-1 backfilled, phase-2 native; in-flight samples may not be judged yet). Every model × condition pools to n=30; the Fable 5 column is the stop_eval-only run of 2026-09-10.</p>
 </div>
 <script>/*%%KIT_JS%%*/
 const fmt = v => v == null ? "–" : (100 * v).toFixed(0) + "%";
@@ -39,7 +43,7 @@ async function refresh() {
   el.textContent = "";
   KitCharts.groupedBars(el, {
     groups: D.conditions,
-    series: [{ name: "Fable 5.1", seriesIndex: 1 }, { name: "GPT-6-Astra", seriesIndex: 4 }],
+    series: [{ name: "Fable 5.1", seriesIndex: 1 }, { name: "GPT-6-Astra", seriesIndex: 4 }, { name: "Fable 5", seriesIndex: 6 }],
     values: D.models.flatMap(m => D.conditions.map(c => {
       const x = cell(m, c);
       return x && x.cheat.est !== null ? { group: c, series: m, ...x.cheat } : null;
@@ -62,8 +66,20 @@ async function refresh() {
     tb.appendChild(tr);
   }
 }
-refresh();
-setInterval(refresh, 45000);
+async function refreshRuns() {
+  const r = await fetch("/api/runs"); const D = await r.json();
+  const tb = document.getElementById("runs-tbody"); tb.innerHTML = "";
+  for (const x of D.runs) {
+    const tr = document.createElement("tr");
+    const st = x.status === "running" ? "<strong>running</strong>" : x.status;
+    tr.innerHTML = `<td>${x.name}</td><td>${(x.model || "").replace("openrouter/", "")}</td><td>${st}</td>` +
+      `<td><progress max="${x.epochs || 0}" value="${x.graded}"></progress> <span class="done">${x.graded}/${x.epochs ?? "?"}</span></td>` +
+      `<td>${x.cheats}</td><td>${x.refusals}</td>`;
+    tb.appendChild(tr);
+  }
+}
+refresh(); refreshRuns();
+setInterval(refresh, 45000); setInterval(refreshRuns, 45000);
 </script>
 </body>
 </html>
