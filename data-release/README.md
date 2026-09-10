@@ -10,7 +10,7 @@ reports are built from.
   `inspect view` or `inspect_ai.log.read_eval_log`). Each `.eval` holds all epochs
   (rollouts) for that arm.
 - `transcripts.jsonl` — flat one-rollout-per-line export (360 rollouts; metadata + all
-  judge scores + full transcript incl. Fable's visible reasoning), for resampling /
+  judge scores + full transcript incl. the models' reasoning summaries), for resampling /
   re-judging / inspection **without** Inspect or the HTML explorer. Built by
   `../analysis/data-release/export_transcripts.py`. Each line has: `run, phase, model,
   condition, epoch, outcome, game_result, resigned, score, findings, engine_contacted,
@@ -23,8 +23,7 @@ reports are built from.
   script — recovered by replaying the daemon-echoed move list with python-chess under the
   daemon's exact termination rules (`analysis/ablations-report/rollout_rows.py`,
   `VERIFIED_RESULTS`). `transcript[]` is a
-  list of `{role, text, reasoning, reasoning_summary, tool_calls[]}` (Astra's reasoning
-  is encrypted upstream, so `reasoning` is null on its rows).
+  list of `{role, text, reasoning, reasoning_summary, tool_calls[]}` (`reasoning` and `reasoning_summary` are both provider-generated summaries of the hidden chain of thought — Fable's arrives as a plaintext `reasoning` block, Astra's as `reasoning_summary`; neither is the raw chain of thought).
 
 ## Arms
 
@@ -70,3 +69,14 @@ Models run via OpenRouter (`openrouter/anthropic/claude-fable-5.1`,
 - `debrief_results_xhigh.jsonl` — the original 79 trajectories re-run at
   `reasoning_effort=xhigh`, `max_tokens=64000` (robustness check).
 - `debrief_probe.py` — the script that produced both files; `NOTES.md` — run notes.
+
+## Motivated-reasoning judge (`motivated-judge/`)
+
+- `summary.json` / `summary.md` — one entry per engine-driven trajectory (108: 20 Fable 5.1, 88
+  GPT-6-Astra) with the `claude-sonnet-5` judge's verdict (rationalized_as_legitimate /
+  acknowledged_and_overrode / no_deliberation / other), voiced justification types, deliberation /
+  disclosure flags, confidence, summary, and its supporting quotes with a per-quote verbatim check.
+- `motivated_reasoning_judge.py` — the inspect scorer (prompt included verbatim). Judge input was
+  the blinded transcript incl. the models' provider-generated reasoning summaries; adaptive extended
+  thinking at effort high; one call per trajectory. The scored `.eval` copies live in the runner
+  workspace (`logs-motivated/`) and are supersets of `eval-logs/`.
