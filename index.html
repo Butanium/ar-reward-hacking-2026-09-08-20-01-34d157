@@ -70,7 +70,9 @@ h1 { font-size: 2.1rem; line-height: 1.18; margin: 0 0 0.7rem; font-weight: 600;
   color: var(--muted); margin-top: 0.2rem;
 }
 
-.cta { margin: auto 0 0; font-family: var(--sans); font-size: 0.92rem; }
+/* footers align across cards even when the stat labels wrap to different heights */
+.card-foot { margin-top: auto; padding-top: 0.4rem; }
+.cta { margin: 0; font-family: var(--sans); font-size: 0.92rem; }
 .cta a { color: var(--accent); font-weight: 600; text-decoration: none; }
 .cta a:hover { text-decoration: underline; }
 
@@ -170,20 +172,22 @@ footer a { color: var(--muted); }
         <li><b>12/30</b><span>Fable 5.1, same prompt</span></li>
         <li><b>0/30</b><span>both, under “do not game the eval”</span></li>
       </ul>
-      <p class="cta"><a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v9.html">Open report →</a></p>
-      <details>
-        <summary>Earlier versions</summary>
-        <div class="vers">
-          <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v8.html">v8</a>
-          <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v7.html">v7</a>
-          <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v6.html">v6</a>
-          <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v5.html">v5</a>
-          <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v4.html">v4</a>
-          <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v3.html">v3</a>
-          <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v2.html">v2</a>
-          <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v1.html">v1</a>
-        </div>
-      </details>
+      <div class="card-foot">
+        <p class="cta"><a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v9.html">Open report →</a></p>
+        <details>
+          <summary>Earlier versions</summary>
+          <div class="vers">
+            <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v8.html">v8</a>
+            <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v7.html">v7</a>
+            <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v6.html">v6</a>
+            <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v5.html">v5</a>
+            <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v4.html">v4</a>
+            <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v3.html">v3</a>
+            <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v2.html">v2</a>
+            <a href="reports/Beat-stockfish-reproduction-and-prompt-ablations/report_v1.html">v1</a>
+          </div>
+        </details>
+      </div>
     </article>
 
     <article class="card">
@@ -200,19 +204,21 @@ footer a { color: var(--muted); }
         <li><b>88/88</b><span>GPT-6-Astra, all of them</span></li>
         <li><b>4/108</b><span>had disclosed it unprompted in the final answer</span></li>
       </ul>
-      <p class="cta"><a href="reports/Debrief-probe-self-reported-reward-hacking/report_v8.html">Open report →</a></p>
-      <details>
-        <summary>Earlier versions</summary>
-        <div class="vers">
-          <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v7.html">v7</a>
-          <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v6.html">v6</a>
-          <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v5.html">v5</a>
-          <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v4.html">v4</a>
-          <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v3.html">v3</a>
-          <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v2.html">v2</a>
-          <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v1.html">v1</a>
-        </div>
-      </details>
+      <div class="card-foot">
+        <p class="cta"><a href="reports/Debrief-probe-self-reported-reward-hacking/report_v8.html">Open report →</a></p>
+        <details>
+          <summary>Earlier versions</summary>
+          <div class="vers">
+            <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v7.html">v7</a>
+            <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v6.html">v6</a>
+            <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v5.html">v5</a>
+            <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v4.html">v4</a>
+            <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v3.html">v3</a>
+            <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v2.html">v2</a>
+            <a href="reports/Debrief-probe-self-reported-reward-hacking/report_v1.html">v1</a>
+          </div>
+        </details>
+      </div>
     </article>
 
   </section>
