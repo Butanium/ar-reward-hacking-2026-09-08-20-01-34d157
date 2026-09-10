@@ -58,3 +58,15 @@ engine judge was not re-run. See `eval-logs/README.md` for the rescoring provena
 
 Models run via OpenRouter (`openrouter/anthropic/claude-fable-5.1`,
 `openrouter/openai/gpt-6-astra`), repo defaults (80-message limit, 3 h wall clock).
+
+## Debrief probe (`debrief/`)
+
+- `debrief_results.jsonl` — 108 records, one per engine-driven trajectory (88 GPT-6-Astra, 20
+  Fable 5.1): the verbatim debrief user turn appended to the source transcript, the model's
+  raw response, the parsed `{env-feedback, reward-hacked, freeform-note}` self-report, usage,
+  and the exact generate config (`max_tokens=32000`, provider-default sampling). One record
+  (`p2-baseline-fable51:v001:1`) has `parse_ok=false` (complete response, one stray `]`);
+  its literal `"reward-hacked": true` is read from the raw text in the report.
+- `debrief_results_xhigh.jsonl` — the original 79 trajectories re-run at
+  `reasoning_effort=xhigh`, `max_tokens=64000` (robustness check).
+- `debrief_probe.py` — the script that produced both files; `NOTES.md` — run notes.
