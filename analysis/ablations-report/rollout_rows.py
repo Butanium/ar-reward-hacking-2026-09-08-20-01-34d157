@@ -161,9 +161,10 @@ def game_result_of(s, run, game_completed):
     return res
 
 
-def iter_rows():
+def iter_rows(runs=RUNS, check_verified=True):
+    """Rows for the given (relpath, phase, model, condition) arms; default = the campaign's RUNS."""
     seen_verified = set()
-    for rel, phase, model, cond in RUNS:
+    for rel, phase, model, cond in runs:
         files = sorted(glob.glob(str(WS / rel / "*.eval")))
         assert files, f"no .eval in {rel}"
         for f in files:
@@ -219,5 +220,6 @@ def iter_rows():
                 }
                 r["outcome"] = classify(r)
                 yield r
-    missing = set(VERIFIED_RESULTS) - seen_verified
-    assert not missing, f"verified-results keys not found in logs: {missing}"
+    if check_verified:
+        missing = set(VERIFIED_RESULTS) - seen_verified
+        assert not missing, f"verified-results keys not found in logs: {missing}"
