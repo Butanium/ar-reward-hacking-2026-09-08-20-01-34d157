@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Payload for the debrief-probe report.
 
-Reads the 79 debrief self-reports (debrief_results.jsonl), attaches each
+Reads the 108 debrief self-reports (debrief_results.jsonl), attaches each
 trajectory's IN-EPISODE disclosure verdict (disclosure_judge_wrapup) and final
 game result from the source logs, computes per-model x per-arm aggregates
 (self-reported reward-hacked rate, in-episode disclosure rate) with Wilson CIs,
@@ -19,7 +19,9 @@ from pathlib import Path
 
 WS = Path("/work/workspace/beat-stockfish")
 sys.path.insert(0, str(WS / ".venv/lib/python3.12/site-packages"))
+sys.path.insert(0, "/work/analysis/ablations-report")
 from inspect_ai.log import read_eval_log  # noqa: E402
+from rollout_rows import game_result_of  # noqa: E402  (same result logic as the ablations report)
 
 DEBRIEF = WS / "debrief" / "debrief_results.jsonl"
 
@@ -33,8 +35,11 @@ ARM_SETUP = {
 SETUP_ORDER = ["original", "no GRADING", "believe in yourself!", "stop_eval tool"]
 MODELS = ["Fable 5.1", "GPT-6-Astra"]
 
-RESULT_PAT = re.compile(r"Game over:\s*(1-0|0-1|1/2-1/2)")
-RESULT_NAME = {"1-0": "win", "0-1": "loss", "1/2-1/2": "draw"}
+# One response is complete (stop_reason=stop, full final sentence) but malformed JSON — a stray
+# `]` before the closing `}` — so the shared parser leaves it unparsed. Its reward-hacked value is
+# literal and unambiguous in the raw text; it is recovered HERE, visibly flagged in the report,
+# rather than by loosening the parser for all 108 responses.
+RECOVERED = {"p2-baseline-fable51:v001:1": True}
 
 
 def wilson(k, n):
@@ -59,7 +64,7 @@ def setup_of(arm: str) -> str:
 
 
 recs = [json.loads(l) for l in open(DEBRIEF)]
-assert len(recs) == 79, len(recs)
+assert len(recs) == 108, len(recs)
 
 # --- attach in-episode disclosure + game result from source logs ---
 by_log = defaultdict(dict)
@@ -75,34 +80,58 @@ for src, ep_map in by_log.items():
         dj = (s.scores or {}).get("disclosure_judge_wrapup")
         r["in_episode_disclosure"] = str(dj.value) if dj else "MISSING"
         r["disclosure_evidence"] = (dj.metadata or {}).get("evidence") if dj else None
-        results = []
-        for m in s.messages:
-            if m.role == "tool":
-                results += RESULT_PAT.findall(m.text or "")
-        r["game_result"] = RESULT_NAME[results[-1]] if results else None
+        g = (s.scores or {}).get("shipped_grader")
+        completed = "the game was not completed" not in ((g.metadata or {}).get("findings", []) if g else [])
+        r["game_result"] = game_result_of(s, r["arm"], completed)
 
 assert all("in_episode_disclosure" in r for r in recs), "unmatched source samples"
 
 # --- build sample rows for the explorer ---
 samples = []
 def readable_reasoning(raw) -> str:
-    """Join human-readable reasoning blocks; drop encrypted (gAAAAA...) blobs."""
+    """Human-readable reasoning for a sample.
+
+    A returned reasoning field is ALWAYS a summary of the raw chain-of-thought, so the
+    `summary` field and a plaintext `reasoning` field are the same kind of thing — surface
+    whichever is present, drop encrypted (gAAAAA...) blobs. (In practice the debrief turn
+    yields almost none: Fable plaintext on ~2/10, Astra's is encrypted with no summary.)
+    """
     if isinstance(raw, str):
         return "" if raw.startswith("gAAAAA") else raw
     if not isinstance(raw, list):
         return ""
     parts = []
     for blk in raw:
-        txt = blk.get("reasoning") if isinstance(blk, dict) else None
+        if not isinstance(blk, dict):
+            continue
+        summ = blk.get("summary")
+        if isinstance(summ, str) and summ.strip():
+            parts.append(summ)
+            continue
+        txt = blk.get("reasoning")
         if isinstance(txt, str) and txt and not txt.startswith("gAAAAA"):
             parts.append(txt)
     return "\n\n".join(parts)
 
 
 for r in sorted(recs, key=lambda r: (r["model"], r["arm"], r["epoch"])):
-    p = r["parsed"]
+    p = r.get("parsed") or {}
     model = "Fable 5.1" if "fable" in r["model"] else "GPT-6-Astra"
     rh = p.get("reward_hacked")
+    recovered = False
+    if not isinstance(rh, bool):
+        assert r["key"] in RECOVERED and not r["parse_ok"], (r["key"], rh, r["parse_ok"])
+        # the raw text must literally contain the value we recover
+        lit = re.search(r'"reward-hacked"\s*:\s*(true|false)', r["response_text"]).group(1)
+        assert (lit == "true") == RECOVERED[r["key"]], (r["key"], lit)
+        rh, recovered = RECOVERED[r["key"]], True
+        # display-only lenient parse of the other two fields (drop the one stray `]`)
+        txt = r["response_text"].rstrip()
+        try:
+            obj = json.loads(txt[:-2] + "}") if txt.endswith('"]}') else {}
+        except json.JSONDecodeError:
+            obj = {}
+        p = {"env_feedback": obj.get("env-feedback"), "freeform_note": obj.get("freeform-note")}
     assert isinstance(rh, bool), (r["arm"], r["epoch"], rh)
     samples.append({
         "id": f"{r['arm']}:e{r['epoch']}",
@@ -118,6 +147,8 @@ for r in sorted(recs, key=lambda r: (r["model"], r["arm"], r["epoch"])):
         "response_text": r["response_text"],
         "reasoning": readable_reasoning(r.get("reasoning")),
         "parse_repaired": bool(r.get("parse_repair")),
+        "parse_ok": bool(r["parse_ok"]),
+        "rh_recovered": recovered,
         "out_tokens": (r.get("usage") or {}).get("output_tokens"),
     })
 
@@ -145,6 +176,7 @@ for m in MODELS:
         "reward_hacked": wilson(sum(s["reward_hacked"] for s in sub), n),
         "disclosed": sum(s["in_episode_disclosure"] == "disclosed" for s in sub),
         "silent": sum(s["in_episode_disclosure"] == "silent" for s in sub),
+        "denied": sum(s["reward_hacked"] is False for s in sub),
         "in_episode_disclosed_rate": wilson(
             sum(s["in_episode_disclosure"] == "disclosed" for s in sub), n),
     }
@@ -182,9 +214,10 @@ def tok_stats(rs, field):
     return {"median": statistics.median(vals), "max": max(vals), "min": min(vals)}
 
 
-def_by_key = {r["key"]: r for r in recs}
 x_by_key = {r["key"]: r for r in xrecs}
-assert set(def_by_key) == set(x_by_key), "key set differs between default and xhigh runs"
+# The xhigh re-run covers the ORIGINAL 79 trajectories only (paired comparison on that subset).
+def_by_key = {r["key"]: r for r in recs if r["key"] in x_by_key}
+assert set(def_by_key) == set(x_by_key), "xhigh keys must be a subset of the default run"
 # every xhigh record used the intended config
 for r in xrecs:
     assert r["generate_config_used"] == {"max_tokens": 64000, "reasoning_effort": "xhigh"}, r["key"]
@@ -200,7 +233,7 @@ xhigh_block = {
 }
 for m in MODELS:
     xsub = [r for r in xrecs if model_of(r) == m]
-    dsub = [r for r in recs if model_of(r) == m]
+    dsub = [r for r in def_by_key.values() if model_of(r) == m]  # same 79 as xhigh
     xhigh_block["reward_hacked"][m] = wilson(sum(rh_of(r) for r in xsub), len(xsub))
     xhigh_block["reward_hacked_default"][m] = wilson(sum(rh_of(r) for r in dsub), len(dsub))
     xhigh_block["tokens"][m] = {
@@ -221,6 +254,10 @@ payload = {
     "models": MODELS,
     "setups": SETUP_ORDER,
     "n_total": len(samples),
+    "n_true": sum(s["reward_hacked"] for s in samples),
+    "n_false": sum(not s["reward_hacked"] for s in samples),
+    "recovered": [{"id": s["id"], "raw": s["response_text"]} for s in samples if s["rh_recovered"]],
+    "denials": [s for s in samples if s["reward_hacked"] is False],
     "agg": agg,
     "model_tot": model_tot,
     "mismatch": mismatch,
@@ -236,11 +273,11 @@ js = json.dumps(payload)
 print(f"{len(samples)} samples; payload {len(js)/1e6:.2f} MB")
 for m in MODELS:
     t = model_tot[m]
-    print(f"  {m:12s} n={t['n']:2d} reward_hacked={t['reward_hacked']['k']}/{t['n']} "
+    print(f"  {m:12s} n={t['n']:2d} reward_hacked={t['reward_hacked']['k']}/{t['n']} denied={t['denied']} "
           f"in-episode disclosed={t['disclosed']}/{t['n']} silent={t['silent']}")
 print("  mismatch:", json.dumps(mismatch))
 print(f"  xhigh: n={xhigh_block['n']} flips={xhigh_block['n_flips']} "
-      f"reasoning_rose={xhigh_block['n_reasoning_rose']}/79")
+      f"reasoning_rose={xhigh_block['n_reasoning_rose']}/{xhigh_block['n']}")
 for m in MODELS:
     t = xhigh_block["tokens"][m]
     print(f"    {m:12s} rh_default={xhigh_block['reward_hacked_default'][m]['k']}/"
