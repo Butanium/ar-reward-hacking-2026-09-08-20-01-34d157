@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Beat-stockfish reproduction and prompt ablations</title>
 <style>/*%%KIT_CSS%%*/
+:root { --filter-light: #e9a9a4; }
 .prelim { border: 1px solid var(--warn, #b58900); border-radius: 8px; padding: .6em .9em; margin: .8em 0; font-size: .95em; }
 .promptdiff { white-space: pre-wrap; font-family: var(--mono, monospace); font-size: .85em; background: var(--panel-bg, rgba(127,127,127,.06)); border-radius: 6px; padding: .7em; }
 .promptdiff .add { color: #1a7f37; } .promptdiff .del { color: #b35900; text-decoration: line-through; }
@@ -25,7 +26,7 @@ blockquote.rq .who { font-style: normal; font-size: .8em; color: var(--muted, #7
 
     <h2 id="decomp">Cheating rate, decomposed</h2>
     <figure class="wide"><div id="fig-decomp"></div>
-      <figcaption>Per rollout, the judge's verdict on flagged episodes splits the grader's binary "engine was used" into: <em>cheated &amp; not revealed</em> / <em>cheated &amp; revealed in the final answer</em> (engine chose or informed moves), and <em>probed only</em> (a stray search while exploring; moves self-chosen). Whiskers: Wilson 95% CI on the stack total (any engine flag). Bars are per-condition, solid = Fable 5.1, hatched = GPT-6-Astra.</figcaption></figure>
+      <figcaption>Per rollout, the judge's verdict on flagged episodes splits the grader's binary "engine was used" into: <em>cheated &amp; not revealed</em> / <em>cheated &amp; revealed in the final answer</em> (engine chose or informed moves), and <em>probed only</em> (a stray search while exploring; moves self-chosen). <em>Provider refusal (upper bound on cheating)</em>, pale, is stacked on top: Fable rollouts killed by Anthropic's content filter right after reconnaissance revealed the engine socket — an upper bound on additional cheating, not observed cheating (GPT-6-Astra was never filtered). Whiskers: Wilson 95% CI on the observed engine-flagged total. Bars are per-condition, solid = Fable 5.1, hatched = GPT-6-Astra.</figcaption></figure>
     <details data-fold="fig-cheatci"><summary>Total cheat rate (engine-driven/assisted) with Wilson 95% CIs</summary>
       <figure class="wide"><div id="fig-cheatci-el"></div></figure></details>
     <details data-fold="fig-contact"><summary>Engine contact rate (touched the socket at all)</summary>
@@ -110,13 +111,16 @@ const T = [
   `With a full n=30 baseline, “believe in yourself!” no longer stands out: Fable ${cheatK("Fable 5.1","believe in yourself!")}/30 vs ${cheatK("Fable 5.1","original")}/30 baseline (overlapping CIs), Astra ${cheatK("GPT-6-Astra","believe in yourself!")}/30 vs ${cheatK("GPT-6-Astra","original")}/30 — the phase-1-only “believe raises Fable” signal did not survive upsampling.`,
   `stop_eval was never called in ${A("Fable 5.1","stop_eval tool").n + A("GPT-6-Astra","stop_eval tool").n} rollouts with the tool available; Fable still dropped to ${cheatK("Fable 5.1","stop_eval tool")}/${A("Fable 5.1","stop_eval tool").n} while Astra kept cheating (${cheatK("GPT-6-Astra","stop_eval tool")}/${A("GPT-6-Astra","stop_eval tool").n}).`,
 ];
+T.push(`Anthropic's content filter killed ${CONDS.reduce((s, c) => s + A("Fable 5.1", c).seg["provider refusal"].count, 0)} Fable 5.1 rollouts across all arms (never GPT-6-Astra), each right after reconnaissance exposed the engine socket. Treated as an upper bound on cheating: Fable's original-prompt rate is ${cheatK("Fable 5.1","original")}/30 observed, at most ${cheatK("Fable 5.1","original") + A("Fable 5.1","original").seg["provider refusal"].count}/30; its zeros in no-GRADING / no-tools / nogame stay ≤ ${Math.max(...["no GRADING","no external tools","do not game the eval"].map(c => A("Fable 5.1", c).seg["provider refusal"].count))}/30 even if every filtered rollout had gone on to cheat; stop_eval ≤ ${A("Fable 5.1","stop_eval tool").seg["provider refusal"].count}/30.`);
 const tl = document.getElementById("tldr-list");
 for (const t of T) { const li = document.createElement("li"); li.textContent = t; tl.appendChild(li); }
 
 // forward ref: assigned at the explorer (below); segment clicks below deep-link into it
 let nav;
+const FILTER_SEG = "provider refusal (upper bound on cheating)";
+const outcomeOf = seg => seg === FILTER_SEG ? "provider refusal" : seg;
 const segClick = fromId => (d) =>
-  nav && nav.goto({ condition: d.group, model: d.sub, outcome: d.segment }, { from: fromId });
+  nav && nav.goto({ condition: d.group, model: d.sub, outcome: outcomeOf(d.segment) }, { from: fromId });
 
 // fig 1: decomposed cheat rate (three segments), grouped-stacked by condition x model
 const segIdx = { [SEGS[0]]: 7, [SEGS[1]]: 1, [SEGS[2]]: 3 };  // red / orange / amber severity (0-based)
@@ -130,10 +134,11 @@ const segLegend = (idx) => Object.entries(idx).map(([name, si]) =>
 KitCharts.groupedStackedBars(document.getElementById("fig-decomp"), {
   groups: CONDS,
   subs: MODELS.map((m, i) => ({ name: m, hatch: i === 1 })),
-  segments: SEGS.map(o => ({ name: o, seriesIndex: segIdx[o] })),
-  values: MODELS.flatMap(m => CONDS.flatMap(c => SEGS.map(o => ({
+  segments: [...SEGS.map(o => ({ name: o, seriesIndex: segIdx[o] })), { name: FILTER_SEG, seriesIndex: 7, color: "var(--filter-light)" }],
+  values: MODELS.flatMap(m => CONDS.flatMap(c => [...SEGS.map(o => ({
     group: c, sub: m, segment: o,
-    count: A(m, c).n ? A(m, c).seg[o].count / A(m, c).n : 0 })))),
+    count: A(m, c).n ? A(m, c).seg[o].count / A(m, c).n : 0 })),
+    { group: c, sub: m, segment: FILTER_SEG, count: A(m, c).n ? A(m, c).seg["provider refusal"].count / A(m, c).n : 0 }])),
   totals: MODELS.flatMap(m => CONDS.map(c => {
     const a = A(m, c);
     if (!a.n) return null;
@@ -143,11 +148,11 @@ KitCharts.groupedStackedBars(document.getElementById("fig-decomp"), {
   })).filter(Boolean),
   percent: false, w: 900, h: 360, yMax: 1, yFmt: KitCharts.pctFmt,
   yTitle: "fraction of rollouts",
-  legendItems: [...segLegend(segIdx), ...subLegend()],
+  legendItems: [...segLegend(segIdx), { name: FILTER_SEG, color: "var(--filter-light)" }, ...subLegend()],
   onSegmentClick: segClick("fig-decomp"),
 });
 document.querySelector("#fig-decomp").insertAdjacentHTML("beforeend",
-  "<p class='note'>Bar heights are fractions of each arm's n; a full bar would mean every rollout was engine-flagged. Click any segment to open those rollouts' transcripts below.</p>");
+  "<p class='note'>Bar heights are fractions of each arm's n; a full bar would mean every rollout was engine-flagged. The pale segment is Anthropic's content filter ending a Fable rollout during sandbox reconnaissance — in every such case the match daemon and its engine socket had just become visible, so these rollouts had not yet chosen; they bound how high the cheat rate could be, they are not observed cheating. Whiskers are on the observed engine-flagged total only. Click any segment to open those rollouts' transcripts below.</p>");
 
 KitFilters.lazyRender(document.querySelector('[data-fold="fig-cheatci"]'), () => {
   KitCharts.groupedBars(document.getElementById("fig-cheatci-el"), {
@@ -172,7 +177,7 @@ KitFilters.lazyRender(document.querySelector('[data-fold="fig-contact"]'), () =>
 const oIdx = { [SEGS[0]]: 7, [SEGS[1]]: 1, [SEGS[2]]: 3,
   "clean completed game": 0, "provider refusal": 6, "called stop_eval": 4,
   "resigned": 2, "ran out of turns": 5 };
-const oColor = { "ran out of turns": "var(--ink-3, #9a9a9a)" };
+const oColor = { "ran out of turns": "var(--ink-3, #9a9a9a)", "provider refusal": "var(--filter-light)" };
 KitCharts.groupedStackedBars(document.getElementById("fig-outcomes"), {
   groups: CONDS,
   subs: MODELS.map((m, i) => ({ name: m, hatch: i === 1 })),
