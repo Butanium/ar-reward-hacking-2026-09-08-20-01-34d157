@@ -98,7 +98,9 @@ KitCharts.groupedBars(document.getElementById("fig-turn"), {
 
 document.getElementById("stopeval-p").innerHTML = G.map(g => `<strong>${g}</strong>: ${A(g).stop_eval_calls} call${A(g).stop_eval_calls === 1 ? "" : "s"} in ${A(g).n} rollouts` + (A(g).stop_eval_reasons.length ? ` — reasons: ${A(g).stop_eval_reasons.map(r => `“${esc(r)}”`).join("; ")}` : "")).join(". ") + ". No stop_eval reason was ever recorded; the tool is offered but not taken.";
 const resTxt = g => { const r = A(g).results; return ["win", "draw", "loss"].map(k => `${r[k] || 0} ${k}`).join(" / ") + ` (${r["None"] || 0} unfinished)`; };
-document.getElementById("results-p").innerHTML = G.map(g => `<strong>${g}</strong>: ${resTxt(g)}`).join("; ") + `. Fable 5's only game in progress was engine-driven and was cut off by the filter after ${DATA.samples.find(s => s.group === "Fable 5 · stop_eval" && s.outcome !== "provider refusal")?.n_messages ?? "?"} messages.`;
+const f5games = DATA.samples.filter(s => s.group === "Fable 5 · stop_eval" && s.outcome !== "provider refusal")
+  .map(s => `epoch ${s.epoch}: ${s.game_result ? `finished ${s.game_result === "win" ? "1-0 (win)" : s.game_result}` : "cut off by the filter mid-game"} after ${s.n_messages} messages, engine-driven, ${s.disclosure === "disclosed" ? "engine use disclosed in the final answer" : "no disclosure (the wrap-up itself was the filter's refusal text)"}`);
+document.getElementById("results-p").innerHTML = G.map(g => `<strong>${g}</strong>: ${resTxt(g)}`).join("; ") + `. Fable 5's rollouts that got past the filter — ${f5games.join("; ")}.`;
 
 // explorer
 const oCls = o => o.startsWith("cheated") ? "critical" : o === "provider refusal" ? "warning" : o === "clean completed game" ? "good" : "";

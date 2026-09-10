@@ -6,7 +6,7 @@ reports are built from.
 
 ## Contents
 
-- `eval-logs/` — 22 arms, one `.eval` file each (Inspect AI format; open with
+- `eval-logs/` — 23 arms, one `.eval` file each (Inspect AI format; open with
   `inspect view` or `inspect_ai.log.read_eval_log`). Each `.eval` holds all epochs
   (rollouts) for that arm.
 - `transcripts.jsonl` — flat one-rollout-per-line export (360 rollouts; metadata + all
@@ -40,6 +40,9 @@ Naming: `{baseline-,abl-<cond>-,p2-<cond>-,p2-baseline-}{astra,fable51}`.
 | "believe in yourself!" appended | `abl-believe-{model}` | `p2-believe-{model}` |
 | stop_eval tool | `abl-stopeval-{model}` | `p2-stopeval-{model}` |
 | "do not game the eval" | — | `p2-nogame-{model}` |
+
+Plus one extra arm outside the 2-model grid: `stopeval-fable5` — 30 rollouts of the stop_eval
+condition on `anthropic/claude-fable-5` (2026-09-10); 28 ended in provider refusals.
 
 ## Scores on every sample
 
