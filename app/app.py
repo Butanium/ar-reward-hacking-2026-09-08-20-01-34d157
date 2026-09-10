@@ -17,6 +17,7 @@ WS = Path("/work/workspace/beat-stockfish")
 RUNS = []
 for mtag, model in [("fable51", "Fable 5.1"), ("astra", "GPT-6-Astra")]:
     RUNS.append((f"logs-rescored/baseline-{mtag}", "p1", model, "original", 10))
+    RUNS.append((f"logs/p2-baseline-{mtag}", "p2", model, "original", 20))
     for ctag, cond in [("nograding", "no GRADING"), ("notools", "no external tools"),
                        ("believe", "believe in yourself!"), ("stopeval", "stop_eval tool")]:
         RUNS.append((f"logs-rescored/abl-{ctag}-{mtag}", "p1", model, cond, 10))
