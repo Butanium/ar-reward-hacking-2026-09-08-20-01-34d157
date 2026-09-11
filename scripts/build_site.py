@@ -28,7 +28,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).resolve().parent.parent
-SITE_PATHS = ["index.html", ".nojekyll", "kit", "reports"]
+SITE_PATHS = ["index.html", ".nojekyll", "kit", "reports", "extras"]
 
 
 def log(msg: str) -> None:
