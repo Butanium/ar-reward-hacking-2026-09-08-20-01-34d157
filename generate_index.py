@@ -64,6 +64,21 @@ CARDS = [
         ],
     ),
     dict(
+        dir="Debrief-denial---resampling-and-reasoning-ablations",
+        kicker="Debrief follow-up",
+        title="Debrief denial &mdash; why one trajectory always says it did not reward-hack",
+        blurb="""The debrief turn re-drawn 10&times; on nine Fable 5.1 cheating trajectories, then the
+        replayed transcript edited: one passage deleted or inserted (no effect), the model's own
+        reasoning blocks removed turn by turn, phase by phase, and altogether. Every
+        <code>reward-hacked: false</code> still describes the engine use in full; what carries
+        the label is the amount of the model's own narration left in context.""",
+        stats=[
+            ("10/10", "one trajectory says <em>false</em> every time; others 0&ndash;4/10"),
+            ("0/10", "same trajectory with its reasoning blocks removed"),
+            ("9&ndash;10/10", "with any single turn or phase of reasoning removed"),
+        ],
+    ),
+    dict(
         dir="Fable-5-on-the-stop_eval-condition",
         kicker="Ablation follow-up",
         title="Fable 5 on the stop_eval condition",
