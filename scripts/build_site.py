@@ -6,12 +6,19 @@ shared CSS/JS, reports/ for the report snapshots) — not data-release/, analysi
 or artifacts/, which are ~130 MB and are linked from the index as github.com
 URLs rather than Pages paths.
 
+Staged reports get a "Back to reports" link injected at the top. It is added
+here rather than in the file because report_v*.html are frozen snapshots, and
+because that way every version gets one, including the ones built before the
+landing page existed.
+
 Verification before deploy:
   - every local href in index.html must resolve to a staged file (a broken one
     is a 404 on the live site, and nothing else would catch it)
   - every reports/<dir> holding report_v*.html should be reachable from the
     index; an unreferenced one is a published report nobody can find, so it is
     reported as a warning rather than silently ignored
+  - every latest report_vN.html should have a report_vN.md beside it, and every
+    staged report should have taken the back link
 
 Run it the same way CI does:
     python scripts/build_site.py --out _site
@@ -73,6 +80,59 @@ def stage(out: Path) -> None:
     log(f"• staged {n} files, {total / 1e6:.0f} MB -> {out}")
 
 
+BACK_LINK_CLASS = "kit-back-to-index"
+
+# Styled off the kit's tokens so it follows the theme the reader picked, with
+# literal fallbacks for any report built before a token existed.
+BACK_LINK_CSS = f"""<style>
+/* injected by scripts/build_site.py */
+.{BACK_LINK_CLASS} {{
+  display: inline-flex; align-items: center; gap: 0.4em;
+  font: 600 0.78rem/1 var(--sans, system-ui, -apple-system, sans-serif);
+  color: var(--ink-2, #52514e); text-decoration: none;
+  background: var(--surface, #fcfcfb);
+  border: 1px solid var(--border, rgba(11, 11, 11, 0.12));
+  border-radius: 999px; padding: 0.42em 0.9em 0.42em 0.72em;
+  margin: 0 0 1.15rem; transition: color 0.15s, border-color 0.15s;
+}}
+.{BACK_LINK_CLASS}:hover {{ color: var(--accent, #256abf); border-color: var(--accent, #256abf); }}
+.{BACK_LINK_CLASS}:focus-visible {{ outline: 2px solid var(--accent, #256abf); outline-offset: 2px; }}
+@media print {{ .{BACK_LINK_CLASS} {{ display: none; }} }}
+</style>
+"""
+
+
+def add_back_links(out: Path) -> int:
+    """Give every staged report a link back to the landing page.
+
+    The reports are frozen snapshots (never edited in place), and older versions
+    were built before the index existed, so the link is added to the staged copy
+    rather than to the file in git. Wording matches extras/transcript-compare.html.
+    """
+    done, skipped = 0, []
+    for p in sorted((out / "reports").rglob("*.html")):
+        html = p.read_text()
+        if BACK_LINK_CLASS in html:
+            continue
+        m = re.search(r"<main\b[^>]*>", html)
+        if not m or "</head>" not in html:
+            skipped.append(str(p.relative_to(out)))
+            continue
+        up = "../" * (len(p.relative_to(out).parts) - 1)
+        link = (f'\n<a class="{BACK_LINK_CLASS}" href="{up}index.html">'
+                f'<span aria-hidden="true">&larr;</span> Back to reports</a>')
+        html = html.replace("</head>", BACK_LINK_CSS + "</head>", 1)
+        # re-find: the head insertion shifted every offset after it
+        m = re.search(r"<main\b[^>]*>", html)
+        p.write_text(html[:m.end()] + link + html[m.end():])
+        done += 1
+    for s in skipped:
+        annotate("warning", f"{s}: no <main> or no </head>, left without a back link")
+    log(f"• back-to-index link added to {done} report page(s)"
+        + (f", {len(skipped)} skipped" if skipped else ""))
+    return len(skipped)
+
+
 def local_hrefs(html: str) -> list[str]:
     out = []
     for raw in re.findall(r'(?:href|src)="([^"]+)"', html):
@@ -125,12 +185,14 @@ def main() -> int:
     p.add_argument("--skip-generate", action="store_true",
                    help="stage the committed index.html without regenerating it")
     p.add_argument("--strict", action="store_true",
-                   help="also fail when a report directory is not linked from the index")
+                   help="also fail on the warnings: a report not linked from the index, "
+                        "or one that could not take a back link")
     args = p.parse_args()
 
     if not args.skip_generate:
         generate_index()
     stage(args.out)
+    no_back_link = add_back_links(args.out)
 
     broken = check_links(args.out)
     for b in broken:
@@ -152,8 +214,9 @@ def main() -> int:
     if broken:
         log(f"\nFAILED: {len(broken)} broken link(s)")
         return 1
-    if orphans and args.strict:
-        log(f"\nFAILED (--strict): {len(orphans)} unreferenced report(s)")
+    if args.strict and (orphans or no_back_link):
+        log(f"\nFAILED (--strict): {len(orphans)} unreferenced report(s), "
+            f"{no_back_link} without a back link")
         return 1
     log(f"\nOK — site staged at {args.out}"
         + (f" ({len(orphans)} unreferenced report(s), see warnings)" if orphans else ""))
