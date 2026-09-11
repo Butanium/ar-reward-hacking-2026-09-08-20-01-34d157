@@ -1,7 +1,18 @@
+"""Assert the kit still draws total-CI whiskers on stacked bars.
+
+Fixture comes from build_demo.py (run it first). See that file for why this
+exists; the screenshots land in _out/, which is gitignored.
+"""
 import sys
+from pathlib import Path
+
 from playwright.sync_api import sync_playwright
 
-URL = "file:///work/tmp/kit_totals_demo/index.html"
+OUT = Path(__file__).resolve().parent / "_out"
+PAGE = OUT / "index.html"
+if not PAGE.exists():
+    sys.exit(f"{PAGE} missing — run build_demo.py first")
+URL = PAGE.as_uri()
 errors = []
 
 with sync_playwright() as p:
@@ -41,7 +52,7 @@ with sync_playwright() as p:
         }""")
         assert "total" in tip and "95% CI" in tip, f"tooltip/a11y missing total CI: {tip!r}"
 
-        pg.screenshot(path=f"/work/tmp/kit_totals_demo/demo_{scheme}.png", full_page=True)
+        pg.screenshot(path=str(OUT / f"demo_{scheme}.png"), full_page=True)
         pg.close()
     b.close()
 

@@ -14,4 +14,11 @@ _site/
 # genuinely need to commit one.
 analysis/**/*.png
 app/*.png
-tmp/**/*.png
+
+# The live env's scratch dir. Its one keeper, the kit totals-whisker smoke test,
+# now lives in scripts/small-smokes/kit-totals/; everything else there is
+# throwaway and should not come back on the next sync.
+tmp/
+
+# Smoke-test build output (fixture page + its screenshots).
+scripts/small-smokes/**/_out/

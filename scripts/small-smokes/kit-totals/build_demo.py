@@ -1,9 +1,22 @@
+"""Build the fixture page for the kit's stacked-bar total-CI whiskers.
+
+Every report in reports/ draws its outcome stacks with `totals`, and the kit
+copy here ships without the upstream scripted smoke suite, so this plus
+render_check.py is the only check that feature still renders. Run both after
+touching stackedBars / groupedStackedBars in kit/charts.js.
+
+    python3 scripts/small-smokes/kit-totals/build_demo.py
+    uv run --with playwright python scripts/small-smokes/kit-totals/render_check.py
+"""
 import sys
 from pathlib import Path
-sys.path.insert(0, "/work/kit")
-from kit_build import build
 
-ROOT = Path(__file__).resolve().parent
+REPO = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO / "kit"))
+from kit_build import build  # noqa: E402
+
+ROOT = Path(__file__).resolve().parent / "_out"
+ROOT.mkdir(exist_ok=True)
 
 SRC = """<title>kit demo — stacked-bar total CI whiskers</title>
 <style>/*%%KIT_CSS%%*/</style>

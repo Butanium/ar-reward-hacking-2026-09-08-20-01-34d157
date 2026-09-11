@@ -10,6 +10,7 @@ before touching anything; the gotchas below were each learned the hard way.
 |---|---|---|
 | `reports/` | Published HTML reports + their `spec.md` and `report_vN.md` | `report_v*.html` are **frozen snapshots — append-only, never edit** |
 | `tools/` | `samples.py` — read any report's embedded corpus from the terminal | see `tools/README.md`; start here instead of opening a 7 MB HTML |
+| `scripts/` | `build_site.py` (stages + verifies the Pages site), `small-smokes/` | `small-smokes/kit-totals/` guards the stacked-bar total-CI whiskers every report draws — run it after touching `kit/charts.js` |
 | `analysis/` | Report generators: `prepare_data*.py` → `build_report*.py` | one dir per report; `*_v3` is the current ablations pipeline |
 | `data-release/` | Canonical analysed data (see its README) | `eval-logs/` = 22 Inspect `.eval` arms; `transcripts.jsonl` = 360 flat rollouts |
 | `kit/` | Copy of the html-report-kit component library | reports build from **this** copy; a kit edit restyles every report on rebuild |
