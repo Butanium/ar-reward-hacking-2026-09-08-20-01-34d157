@@ -35,6 +35,7 @@ REPORTS_DIR = ROOT / "reports"
 ALIASES = {
     "ablations": "Beat-stockfish-reproduction-and-prompt-ablations",
     "debrief": "Debrief-probe-self-reported-reward-hacking",
+    "denial": "Debrief-denial---resampling-and-reasoning-ablations",
     "stopeval": "Fable-5-on-the-stop_eval-condition",
     "motivated": "Motivated-reasoning-in-Fable-s-cheating-decisions",
     "repro": "Beat-stockfish-reproduction-results",
