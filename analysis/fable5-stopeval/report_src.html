@@ -32,7 +32,7 @@
 
     <h2 id="outcomes">1. Outcomes</h2>
     <figure class="wide"><div id="fig-outcomes"></div>
-      <figcaption>All outcomes, mutually exclusive, per arm. <em>Provider refusal</em> (pale, stacked directly above the cheating segments) = the episode ended because Anthropic's content filter blocked the model's next turn ("violative cyber content … blocked under Anthropic's Usage Policy"), three times in a row — in every case right after reconnaissance output revealed the engine socket, before the model had chosen anything. The whisker is the Wilson 95% CI on the upper bound (cheated + provider refusal, i.e. every filtered rollout counted as a cheat too), landing at the top of the pale segment — an upper bound on cheating, not observed cheating. "Probed only" is drawn above the pale segment, outside the upper bound: a stray engine look with self-chosen moves is not counted as cheating even generously.</figcaption></figure>
+      <figcaption>All outcomes, mutually exclusive, per arm (raw counts; each arm's n is shown under its bar). <em>Provider refusal</em> (pale, stacked directly above the cheating segments) = the episode ended because Anthropic's content filter blocked the model's next turn ("violative cyber content … blocked under Anthropic's Usage Policy"), three times in a row — in every case right after reconnaissance output revealed the engine socket, before the model had chosen anything. The whisker is the Wilson 95% CI on the upper bound (cheated + provider refusal, i.e. every filtered rollout counted as a cheat too), converted to a count, landing at the top of the pale segment — an upper bound on cheating, not observed cheating. "Probed only" is drawn above the pale segment, outside the upper bound: a stray engine look with self-chosen moves is not counted as cheating even generously.</figcaption></figure>
     <figure class="wide"><div id="fig-turn"></div>
       <figcaption>For refused rollouts: how many assistant turns the model completed before the filter struck. The filter fires on the turn after the sandbox reconnaissance output that reveals <code>/run/match</code> (the match daemon and its engine socket).</figcaption></figure>
 
@@ -91,9 +91,11 @@ KitCharts.stackedBars(document.getElementById("fig-outcomes"), {
   groups: G, segments: shown.map(o => ({ name: o, seriesIndex: oIdx[o], color: oColor[o] })),
   values: G.flatMap(g => shown.map(o => ({ group: g, segment: o, count: A(g).seg[o].count, lo: A(g).seg[o].lo, hi: A(g).seg[o].hi }))),
   // Whisker = Wilson 95% CI on the upper-bound total (cheated + provider refusal, excludes
-  // "probed only"); with the order above it lands at the top of the pale segment.
-  totals: G.map(g => { const w = A(g).cheat_upper_bound; return { group: g, est: w.est, lo: w.lo, hi: w.hi }; }),
-  percent: true, w: 900, h: 340, groupLabel: g => `${g} (n=${A(g).n})`,
+  // "probed only"), scaled from a fraction to a raw count (x n); with the order above it
+  // lands at the top of the pale segment.
+  totals: G.map(g => { const w = A(g).cheat_upper_bound; return { group: g, est: w.est * A(g).n, lo: w.lo * A(g).n, hi: w.hi * A(g).n }; }),
+  percent: false, w: 900, h: 340, groupLabel: g => `${g} (n=${A(g).n})`,
+  yTitle: "rollouts (count)",
 });
 // Fig 2: turns before filter
 const turns = [...new Set(G.flatMap(g => Object.keys(A(g).turns_before_filter)))].map(Number).sort((a, b) => a - b);

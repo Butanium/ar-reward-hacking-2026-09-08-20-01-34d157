@@ -26,7 +26,7 @@ blockquote.rq .who { font-style: normal; font-size: .8em; color: var(--muted, #7
 
     <h2 id="decomp">Cheating rate, decomposed</h2>
     <figure class="wide"><div id="fig-decomp"></div>
-      <figcaption>Per rollout, the judge's verdict on flagged episodes splits the grader's binary "engine was used" into: <em>cheated &amp; not revealed</em> / <em>cheated &amp; revealed in the final answer</em> (engine chose or informed moves) at the bottom, then <em>provider refusal (upper bound on cheating)</em>, pale — Fable rollouts killed by Anthropic's content filter right after reconnaissance revealed the engine socket, counted as if they'd gone on to cheat (GPT-6-Astra was never filtered) — then <em>probed only</em> (a stray search while exploring; moves self-chosen) drawn on top, outside the upper bound, since it is not counted as cheating even generously. Whiskers: Wilson 95% CI on the upper-bound total (cheated + provider refusal), landing at the top of the pale segment. Bars are per-condition, solid = Fable 5.1, hatched = GPT-6-Astra.</figcaption></figure>
+      <figcaption>Per rollout (raw counts, n=30 per arm), the judge's verdict on flagged episodes splits the grader's binary "engine was used" into: <em>cheated &amp; not revealed</em> / <em>cheated &amp; revealed in the final answer</em> (engine chose or informed moves) at the bottom, then <em>provider refusal (upper bound on cheating)</em>, pale — Fable rollouts killed by Anthropic's content filter right after reconnaissance revealed the engine socket, counted as if they'd gone on to cheat (GPT-6-Astra was never filtered) — then <em>probed only</em> (a stray search while exploring; moves self-chosen) drawn on top, outside the upper bound, since it is not counted as cheating even generously. Whiskers: Wilson 95% CI on the upper-bound total (cheated + provider refusal), converted to a count, landing at the top of the pale segment. Bars are per-condition, solid = Fable 5.1, hatched = GPT-6-Astra.</figcaption></figure>
     <details data-fold="fig-cheatci"><summary>Total cheat rate (engine-driven/assisted) with Wilson 95% CIs</summary>
       <figure class="wide"><div id="fig-cheatci-el"></div></figure></details>
     <details data-fold="fig-contact"><summary>Engine contact rate (touched the socket at all)</summary>
@@ -147,21 +147,21 @@ KitCharts.groupedStackedBars(document.getElementById("fig-decomp"), {
     ? { name: FILTER_SEG, seriesIndex: 7, color: "var(--filter-light)" }
     : { name: o, seriesIndex: segIdx[o] }),
   values: MODELS.flatMap(m => CONDS.flatMap(c => [...SEGS.map(o => ({
-    group: c, sub: m, segment: o,
-    count: A(m, c).n ? A(m, c).seg[o].count / A(m, c).n : 0 })),
-    { group: c, sub: m, segment: FILTER_SEG, count: A(m, c).n ? A(m, c).seg["provider refusal"].count / A(m, c).n : 0 }])),
+    group: c, sub: m, segment: o, count: A(m, c).seg[o].count })),
+    { group: c, sub: m, segment: FILTER_SEG, count: A(m, c).seg["provider refusal"].count }])),
   // Whisker = the upper-bound CI (every provider-refused rollout counted as a cheat too,
-  // stats computed in Python as cheat_upper_bound; excludes "probed only"). With the stack
-  // order above it lands exactly at the top of the pale segment. The strictly-observed CI
-  // (excludes refusals too) is the "engine-driven/assisted rate" fold below.
+  // stats computed in Python as cheat_upper_bound; excludes "probed only"), scaled from a
+  // fraction to a raw count (x n) to match the raw-count bars. With the stack order above
+  // it lands exactly at the top of the pale segment. The strictly-observed CI (excludes
+  // refusals too) is the "engine-driven/assisted rate" fold below.
   totals: MODELS.flatMap(m => CONDS.map(c => {
     const a = A(m, c);
     if (!a.n) return null;
     const w = a.cheat_upper_bound;
-    return { group: c, sub: m, est: w.est, lo: w.lo, hi: w.hi };
+    return { group: c, sub: m, est: w.est * a.n, lo: w.lo * a.n, hi: w.hi * a.n };
   })).filter(Boolean),
-  percent: false, w: 900, h: 360, yMax: 1, yFmt: KitCharts.pctFmt,
-  yTitle: "fraction of rollouts",
+  percent: false, w: 900, h: 360,
+  yTitle: "rollouts (count)",
   legendItems: [{ name: SEGS[0], color: `var(--series-${(segIdx[SEGS[0]] % 8) + 1})` },
     { name: SEGS[1], color: `var(--series-${(segIdx[SEGS[1]] % 8) + 1})` },
     { name: FILTER_SEG, color: "var(--filter-light)" },
@@ -169,7 +169,7 @@ KitCharts.groupedStackedBars(document.getElementById("fig-decomp"), {
   onSegmentClick: segClick("fig-decomp"),
 });
 document.querySelector("#fig-decomp").insertAdjacentHTML("beforeend",
-  "<p class='note'>Bar heights are fractions of each arm's n; a full bar would mean every rollout was engine-flagged. The pale segment is Anthropic's content filter ending a Fable rollout during sandbox reconnaissance — in every such case the match daemon and its engine socket had just become visible, so these rollouts had not yet chosen; they bound how high the cheat rate could be, they are not observed cheating. \"Probed only\" (a stray engine contact with self-chosen moves) is drawn above the pale segment and is never counted as cheating, even in the upper bound. The whisker is the Wilson 95% CI on the upper-bound total (cheated + provider refusal); it lands exactly at the top of the pale segment. Click any segment to open those rollouts' transcripts below.</p>");
+  "<p class='note'>Bar heights are raw counts out of each arm's n=30; a full bar (30) would mean every rollout was engine-flagged. The pale segment is Anthropic's content filter ending a Fable rollout during sandbox reconnaissance — in every such case the match daemon and its engine socket had just become visible, so these rollouts had not yet chosen; they bound how high the cheat rate could be, they are not observed cheating. \"Probed only\" (a stray engine contact with self-chosen moves) is drawn above the pale segment and is never counted as cheating, even in the upper bound. The whisker is the Wilson 95% CI on the upper-bound total (cheated + provider refusal), converted from a rate to a count; it lands exactly at the top of the pale segment. Click any segment to open those rollouts' transcripts below.</p>");
 
 KitFilters.lazyRender(document.querySelector('[data-fold="fig-cheatci"]'), () => {
   KitCharts.groupedBars(document.getElementById("fig-cheatci-el"), {
