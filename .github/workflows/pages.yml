@@ -8,6 +8,7 @@ on:
     paths:
       - 'reports/**'
       - 'kit/**'
+      - 'extras/**'
       - 'generate_index.py'
       - 'scripts/build_site.py'
       - '.github/workflows/pages.yml'
