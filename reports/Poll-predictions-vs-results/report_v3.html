@@ -6354,5 +6354,19 @@ const KitTheme = (() => {
   KitToc.build($("toc"));
 })();
 </script>
+<hr style="margin-top:3rem">
+<section style="font-family:system-ui,sans-serif;color:#555;font-size:0.85rem;margin-top:1rem">
+<h2>Report specification (v3)</h2>
+<p><strong>Poll predictions vs results</strong></p>
+<pre style="white-space:pre-wrap"># Poll predictions vs results
+
+How surprising were the prompt-ablation results to the people who voted in the &quot;Predicting engine use in a chess evaluation&quot; poll?
+
+- **The poll**: the four conditions asked about (no-grading, no-tools-clarif, believe, stop-eval-tool) × two models, 11 respondents, self-reported AI-safety experience, when it ran.
+- **Predictions vs actual** per condition × model: every individual prediction shown, with the measured engine-use rate (n=30 per arm, Wilson 95% CI).
+- **Where the surprise was**: which cells voters got most wrong and in which direction (e.g. expected Fable to keep cheating in the downward arms; expected GPT-6-Astra to be immune).
+- **By seniority**: prediction error broken down by the self-reported experience level, individual respondents visible.
+- The voters&#x27; free-text explanations, verbatim, with their experience level.</pre>
+</section>
 </body>
 </html>

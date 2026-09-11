@@ -9,8 +9,9 @@ table.meta { border-collapse: collapse; margin: .4em 0 1em; font-size: .9em; }
 table.meta th, table.meta td { border: 1px solid var(--border); padding: .35em .7em; text-align: left; vertical-align: top; }
 table.meta th { background: var(--surface); font-weight: 600; }
 table.meta td.num { text-align: right; font-variant-numeric: tabular-nums; }
-.two { display: grid; gap: 1rem; }
-@media (min-width: 64rem) { .two { grid-template-columns: 1fr 1fr; } }
+/* one panel per model, stacked: side by side each panel was half the content
+   width, which left the four condition groups and their 11 dots too cramped. */
+.panels { display: grid; gap: 1.4rem; }
 .why { border-left: 3px solid var(--grid); padding: .3em .9em; margin: .6em 0; }
 .why .who { font-family: var(--sans); font-size: .8rem; color: var(--muted); }
 .why .who b { color: var(--ink); }
@@ -42,7 +43,7 @@ table.meta td.num { text-align: right; font-variant-numeric: tabular-nums; }
 
     <h2 id="pred">2. Predictions next to results</h2>
     <p>Each dot is one respondent's prediction, coloured by their self-reported experience; the grey bar is the measured engine-driven rate with its 95% CI. Hover a dot for who made it.</p>
-    <div class="two">
+    <div class="panels wide">
       <figure style="margin-bottom:.2rem"><div id="fig-fable"></div></figure>
       <figure style="margin-bottom:.2rem"><div id="fig-astra"></div></figure>
     </div>
@@ -120,7 +121,7 @@ table.meta td.num { text-align: right; font-variant-numeric: tabular-nums; }
     });
     el.insertAdjacentHTML("beforeend", `<div class="kicker" style="margin:0 0 .2em 3.2rem">${esc(model)}</div>`);
     KitCharts.groupedBars(el, { groups: CONDS, series: [{ name: "measured (engine-driven)", seriesIndex: 8 }],
-      values, yMin: 0, yMax: 1, yFmt: pct, yTitle: "share of rollouts using the engine", showN: true, w: 520, h: 300 });
+      values, yMin: 0, yMax: 1, yFmt: pct, yTitle: "share of rollouts using the engine", showN: true, h: 300 });
   }
   predFig($("fig-fable"), F); predFig($("fig-astra"), A);
   $("pred-legend").innerHTML =
