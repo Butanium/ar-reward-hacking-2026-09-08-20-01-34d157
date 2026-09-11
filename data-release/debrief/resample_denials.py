@@ -62,6 +62,30 @@ message left in the transcript still carries a reasoning item.
 
     python3 debrief/resample_denials.py --keys p2-baseline-fable51:v001:13 \\
         --strip-reasoning --out debrief/intervention_s13.jsonl
+
+Selective reasoning stripping: two mutually exclusive optional selectors narrow which
+assistant messages ``--strip-reasoning``'s stripping applies to (indices are 0-based,
+into ``sel.messages``, same numbering as ``--patch``'s ``message_index`` / transcript
+dumps' ``--- [N] ROLE ---``). Either selector on its own implies stripping is active
+(no need to also pass ``--strip-reasoning``); passing neither keeps the plain
+"strip everything" behaviour above.
+
+    --strip-reasoning-msgs 6,8,10   strip ONLY the assistant messages at these indices
+    --keep-reasoning-msgs 1,4,6,8,10  strip ALL assistant messages EXCEPT these indices
+
+Every index passed to either selector is asserted to refer to an assistant message
+that actually carries >=1 ``ContentReasoning`` item before stripping (otherwise the
+script prints the actual reasoning-bearing indices for that trajectory and stops,
+rather than guessing). Each output row records ``prior_reasoning_blocks_stripped``
+(actual count removed), ``reasoning_msgs_stripped`` (sorted list of message indices
+actually stripped), and ``reasoning_msgs_kept`` (sorted list of assistant message
+indices that still carry reasoning afterward) -- and it is asserted internally that
+these two lists exactly match what was requested.
+
+    python3 debrief/resample_denials.py --keys p2-baseline-fable51:v001:13 \\
+        --strip-reasoning-msgs 10 --out debrief/intervention_t10.jsonl
+    python3 debrief/resample_denials.py --keys p2-baseline-fable51:v001:13 \\
+        --keep-reasoning-msgs 1,4,6,8,10 --out debrief/intervention_k1.jsonl
 """
 
 from __future__ import annotations
@@ -121,7 +145,30 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                     help="Remove every ContentReasoning item from every prior "
                          "assistant message before the debrief call (any model; "
                          "see module docstring).")
+    selector = p.add_mutually_exclusive_group()
+    selector.add_argument("--strip-reasoning-msgs", type=str, default=None, metavar="I,J,K",
+                           help="Comma-separated 0-based message indices (into "
+                                "sel.messages); strip ContentReasoning ONLY from "
+                                "these assistant messages. Implies stripping is "
+                                "active even without --strip-reasoning.")
+    selector.add_argument("--keep-reasoning-msgs", type=str, default=None, metavar="I,J,K",
+                           help="Comma-separated 0-based message indices; strip "
+                                "ContentReasoning from all OTHER assistant messages, "
+                                "keeping reasoning at these. Implies stripping is "
+                                "active even without --strip-reasoning.")
     return p.parse_args(argv)
+
+
+def parse_msg_list(s: str | None) -> set[int] | None:
+    if s is None:
+        return None
+    parts = [x.strip() for x in s.split(",") if x.strip() != ""]
+    assert parts, f"empty message-index list: {s!r}"
+    out = set()
+    for x in parts:
+        assert x.lstrip("-").isdigit(), f"not an integer message index: {x!r} (in {s!r})"
+        out.add(int(x))
+    return out
 
 
 def arm_of_key(key: str) -> str:
@@ -229,33 +276,94 @@ def apply_patch(sel: Any, edits: list[dict[str, Any]]) -> None:
               f"(0 occurrences of find remain; replace present: {snippet!r})")
 
 
-def strip_reasoning(sel: Any) -> int:
-    """Mutate ``sel.messages`` in place, removing every ``ContentReasoning`` item
-    from every assistant message's content (generalizing, for any model, the
-    Astra-only pattern in ``debrief_probe.py``'s ``run_one`` around line 361:
+def reasoning_bearing_indices(sel: Any) -> list[int]:
+    """Sorted indices (into ``sel.messages``) of assistant messages that currently
+    carry at least one ``ContentReasoning`` item."""
+    return sorted(
+        i for i, m in enumerate(sel.messages)
+        if m.role == "assistant" and isinstance(m.content, list)
+        and any(getattr(c, "type", None) == "reasoning" for c in m.content)
+    )
+
+
+def strip_reasoning(sel: Any, only_msgs: set[int] | None = None,
+                     keep_msgs: set[int] | None = None) -> dict[str, Any]:
+    """Mutate ``sel.messages`` in place, removing ``ContentReasoning`` item(s) from
+    assistant messages' content (generalizing, for any model, the Astra-only
+    pattern in ``debrief_probe.py``'s ``run_one`` around line 361:
     ``kept = [c for c in m.content if getattr(c, "type", None) != "reasoning"]``).
 
-    Returns the total number of reasoning blocks removed, and asserts that zero
-    remain in any assistant message afterwards.
+    - Neither ``only_msgs`` nor ``keep_msgs``: strip EVERY assistant message
+      (original plain ``--strip-reasoning`` behaviour).
+    - ``only_msgs``: strip ONLY the assistant messages at these indices.
+    - ``keep_msgs``: strip every reasoning-bearing assistant message EXCEPT
+      these indices.
+
+    Every index in ``only_msgs``/``keep_msgs`` is asserted to refer to an
+    assistant message that actually carried reasoning before stripping (prints
+    the actual reasoning-bearing indices and raises otherwise, rather than
+    guessing). After mutating, asserts the resulting stripped/kept index lists
+    exactly match what was requested.
+
+    Returns a dict with ``n_stripped`` (total reasoning blocks removed),
+    ``stripped_idx`` (sorted list of message indices actually stripped), and
+    ``kept_idx`` (sorted list of assistant message indices that still carry
+    reasoning afterward).
     """
+    assert not (only_msgs and keep_msgs), (
+        f"{sel.key}: only_msgs and keep_msgs are mutually exclusive"
+    )
+
+    before = reasoning_bearing_indices(sel)
+    before_set = set(before)
+
+    if only_msgs is not None:
+        bad = sorted(only_msgs - before_set)
+        assert not bad, (
+            f"{sel.key}: --strip-reasoning-msgs index/indices {bad} do not carry "
+            f"a reasoning block before stripping; reasoning-bearing assistant "
+            f"message indices are {before}"
+        )
+        target = set(only_msgs)
+    elif keep_msgs is not None:
+        bad = sorted(keep_msgs - before_set)
+        assert not bad, (
+            f"{sel.key}: --keep-reasoning-msgs index/indices {bad} do not carry "
+            f"a reasoning block before stripping; reasoning-bearing assistant "
+            f"message indices are {before}"
+        )
+        target = before_set - set(keep_msgs)
+    else:
+        target = set(before_set)
+
     cleaned = []
     n_stripped = 0
-    for m in sel.messages:
-        if m.role == "assistant" and isinstance(m.content, list):
+    stripped_idx = []
+    for i, m in enumerate(sel.messages):
+        if i in target and m.role == "assistant" and isinstance(m.content, list):
             kept = [c for c in m.content if getattr(c, "type", None) != "reasoning"]
-            n_stripped += len(m.content) - len(kept)
-            if len(kept) != len(m.content):
+            removed = len(m.content) - len(kept)
+            if removed:
+                n_stripped += removed
+                stripped_idx.append(i)
                 m = m.model_copy(update={"content": kept})
         cleaned.append(m)
     sel.messages = cleaned
 
-    for m in sel.messages:
-        if m.role == "assistant" and isinstance(m.content, list):
-            assert not any(getattr(c, "type", None) == "reasoning" for c in m.content), (
-                f"{sel.key}: assistant message still contains a reasoning item "
-                f"after stripping"
-            )
-    return n_stripped
+    kept_idx = reasoning_bearing_indices(sel)
+    stripped_idx = sorted(stripped_idx)
+
+    expected_stripped = sorted(target)
+    expected_kept = sorted(before_set - target)
+    assert stripped_idx == expected_stripped, (
+        f"{sel.key}: actually-stripped indices {stripped_idx} != requested "
+        f"{expected_stripped}"
+    )
+    assert kept_idx == expected_kept, (
+        f"{sel.key}: post-strip reasoning-bearing indices {kept_idx} != expected "
+        f"{expected_kept}"
+    )
+    return {"n_stripped": n_stripped, "stripped_idx": stripped_idx, "kept_idx": kept_idx}
 
 
 async def amain(args: argparse.Namespace) -> int:
@@ -308,19 +416,30 @@ async def amain(args: argparse.Namespace) -> int:
             apply_patch(s, patch_edits)
         print()
 
-    stripped_counts: dict[str, int] = {}
-    if args.strip_reasoning:
-        print(f"stripping reasoning blocks from prior assistant messages of "
-              f"{len(targets)} target trajectory(ies):\n")
+    only_msgs = parse_msg_list(args.strip_reasoning_msgs)
+    keep_msgs = parse_msg_list(args.keep_reasoning_msgs)
+    strip_active = bool(args.strip_reasoning or only_msgs is not None or keep_msgs is not None)
+
+    strip_info: dict[str, dict[str, Any]] = {}
+    if strip_active:
+        if only_msgs is not None:
+            mode_desc = f"only messages {sorted(only_msgs)}"
+        elif keep_msgs is not None:
+            mode_desc = f"all reasoning-bearing messages except {sorted(keep_msgs)}"
+        else:
+            mode_desc = "all reasoning-bearing messages"
+        print(f"stripping reasoning blocks ({mode_desc}) from prior assistant "
+              f"messages of {len(targets)} target trajectory(ies):\n")
         for s in targets:
-            n_stripped = strip_reasoning(s)
-            assert n_stripped > 0, (
-                f"{s.key}: --strip-reasoning removed 0 reasoning blocks "
-                f"(expected > 0 for this trajectory)"
+            info = strip_reasoning(s, only_msgs=only_msgs, keep_msgs=keep_msgs)
+            assert info["n_stripped"] > 0, (
+                f"{s.key}: stripping removed 0 reasoning blocks (expected > 0 "
+                f"for this trajectory/selector)"
             )
-            stripped_counts[s.key] = n_stripped
-            print(f"  {s.key}: removed {n_stripped} reasoning block(s); "
-                  f"0 remain in any assistant message")
+            strip_info[s.key] = info
+            print(f"  {s.key}: removed {info['n_stripped']} reasoning block(s) "
+                  f"from message(s) {info['stripped_idx']}; still present at "
+                  f"message(s) {info['kept_idx']}")
         print()
 
     print(f"selected {len(targets)} target trajectories x {n_draws} draws "
@@ -346,11 +465,14 @@ async def amain(args: argparse.Namespace) -> int:
         rec["patch_applied"] = patch_edits is not None
         # run_one() itself only ever sets prior_reasoning_blocks_stripped via its
         # astra_model branch, which we never pass -- so it's always 0 there.
-        # Overwrite with the real count from our own (any-model) stripping pass,
-        # done once per trajectory above (0 / absent when --strip-reasoning wasn't
-        # given, matching run_one's own default exactly).
-        rec["prior_reasoning_blocks_stripped"] = stripped_counts.get(sel.key, 0)
-        rec["strip_reasoning"] = args.strip_reasoning
+        # Overwrite with the real count/indices from our own (any-model) stripping
+        # pass, done once per trajectory above (0 / empty when stripping wasn't
+        # active, matching run_one's own default exactly).
+        info = strip_info.get(sel.key)
+        rec["prior_reasoning_blocks_stripped"] = info["n_stripped"] if info else 0
+        rec["reasoning_msgs_stripped"] = info["stripped_idx"] if info else []
+        rec["reasoning_msgs_kept"] = info["kept_idx"] if info else []
+        rec["strip_reasoning"] = strip_active
         return rec
 
     tasks = [asyncio.create_task(draw(s, i)) for s in targets for i in range(n_draws)]

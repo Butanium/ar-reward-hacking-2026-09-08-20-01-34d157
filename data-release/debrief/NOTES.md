@@ -97,3 +97,7 @@ sampling), re-drawn 10× per trajectory. All keys are Fable 5.1 (`openrouter/ant
   assistant reasoning blocks removed. e13 10/10 → 0/10 deny; e10 2/10 → 0/10.
   Every "false" answer in all files still describes the engine use in full — the boolean
   tracks the model's stance, and the stance is inherited from its own reasoning trace.
+- `intervention_t10/t20/g1/g2/g3/k1.jsonl` (`--strip-reasoning-msgs` / `--keep-reasoning-msgs`, e13):
+  strip msg 10 → 9/10 deny; strip msg 20 → 10/10; strip msgs 1–10 → 9/10; strip 14–20 → 9/10;
+  strip 26–51 → 10/10; keep ONLY 1–10 → 2/10. No single turn or phase is necessary; the
+  discovery phase alone is not sufficient. The denial needs a critical mass of the narration.
