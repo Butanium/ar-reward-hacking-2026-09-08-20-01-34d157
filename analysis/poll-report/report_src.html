@@ -16,6 +16,10 @@ table.meta td.num { text-align: right; font-variant-numeric: tabular-nums; }
 .why .who b { color: var(--ink); }
 .why p { margin: .2em 0; }
 .why.blank p { color: var(--muted); font-style: italic; }
+.legend { display: flex; flex-wrap: wrap; gap: .4em 1.4em; font-family: var(--sans); font-size: .84rem; color: var(--ink-2); margin: .2em 0 .4em 3.2rem; }
+.legend .lg { display: inline-flex; align-items: center; gap: .45em; }
+.legend .lg i { display: inline-block; width: 11px; height: 11px; }
+.figcap { font-size: .9em; color: var(--ink-2); margin: 0 0 1em; }
 .sen-0 { border-left-color: var(--series-4); } .sen-1 { border-left-color: var(--series-3); }
 .sen-2 { border-left-color: var(--series-2); } .sen-3 { border-left-color: var(--series-1); }
 </style>
@@ -37,11 +41,13 @@ table.meta td.num { text-align: right; font-variant-numeric: tabular-nums; }
     <p>Respondents by self-reported experience: <span id="sen-counts"></span>.</p>
 
     <h2 id="pred">2. Predictions next to results</h2>
-    <p>Each dot is one respondent's prediction; the bar is the measured engine-driven rate with its 95% CI. Hover a dot for who made it.</p>
+    <p>Each dot is one respondent's prediction, coloured by their self-reported experience; the grey bar is the measured engine-driven rate with its 95% CI. Hover a dot for who made it.</p>
     <div class="two">
-      <figure><div id="fig-fable"></div><figcaption>Fable 5.1 — measured engine-driven rate per condition (bars, n=30, Wilson 95% CI) with the 11 individual predictions overlaid.</figcaption></figure>
-      <figure><div id="fig-astra"></div><figcaption>GPT-6-Astra — same layout.</figcaption></figure>
+      <figure style="margin-bottom:.2rem"><div id="fig-fable"></div></figure>
+      <figure style="margin-bottom:.2rem"><div id="fig-astra"></div></figure>
     </div>
+    <div class="legend" id="pred-legend"></div>
+    <p class="figcap">Measured engine-driven rate per condition (grey bars, n=30 per model per condition, Wilson 95% CI) with the 11 individual predictions overlaid, one panel per model; dot colour = the respondent's self-reported experience.</p>
     <p class="note" id="defs-note"></p>
 
     <h2 id="surprise">3. Where the surprise was</h2>
@@ -103,17 +109,23 @@ table.meta td.num { text-align: right; font-variant-numeric: tabular-nums; }
     D.conds.map(cd => `<tr><td><code>${esc(cd.short)}</code></td><td>${esc(cd.wording)}</td><td>${esc(cd.data_name)}</td></tr>`).join("");
 
   // ---------- fig 1/2: bars + prediction dots
+  // seniority colours: same mapping as the .sen-* borders in section 5 (most experienced = series-1)
+  const SEN_COLOR = rank => `var(--series-${4 - rank})`;
+  const BAR_COLOR = "var(--muted)";
   function predFig(el, model) {
     const values = CONDS.map(cnd => {
       const x = cell(model, cnd);
-      return { group: cnd, series: "measured (engine-driven)", est: x.actual.est, lo: x.actual.lo, hi: x.actual.hi, n: x.actual.n,
-        points: x.predictions.map(p => ({ label: `${p.id} · ${p.seniority}`, value: p.value })) };
+      return { group: cnd, series: "measured (engine-driven)", est: x.actual.est, lo: x.actual.lo, hi: x.actual.hi, n: x.actual.n, color: BAR_COLOR,
+        points: x.predictions.map(p => ({ label: `${p.id} · ${p.seniority}`, value: p.value, color: SEN_COLOR(p.seniority_rank) })) };
     });
-    KitCharts.groupedBars(el, { groups: CONDS, series: [{ name: "measured (engine-driven)", seriesIndex: model === F ? 1 : 2 }],
+    el.insertAdjacentHTML("beforeend", `<div class="kicker" style="margin:0 0 .2em 3.2rem">${esc(model)}</div>`);
+    KitCharts.groupedBars(el, { groups: CONDS, series: [{ name: "measured (engine-driven)", seriesIndex: 8 }],
       values, yMin: 0, yMax: 1, yFmt: pct, yTitle: "share of rollouts using the engine", showN: true, w: 520, h: 300 });
-    el.insertAdjacentHTML("beforeend", `<p class="note" style="margin:.3em 0 0">${esc(model)} · dots = the 11 predictions</p>`);
   }
   predFig($("fig-fable"), F); predFig($("fig-astra"), A);
+  $("pred-legend").innerHTML =
+    `<span class="lg"><i style="background:${BAR_COLOR};border-radius:2px"></i> measured engine-driven rate, n=30, Wilson 95% CI</span>` +
+    [...D.seniority_levels].reverse().map(l => `<span class="lg"><i style="border:1.6px solid ${SEN_COLOR(senRank[l])};background:var(--surface);border-radius:50%"></i> ${esc(l)} (n=${senCount[l]})</span>`).join("");
   const defs = D.cells.filter(x => x.socket_contact.k !== x.actual.k || x.refusals);
   $("defs-note").innerHTML = `“Used the engine” is read here as engine-driven play. Under looser definitions some Fable 5.1 cells move: ` +
     defs.map(x => `${esc(x.model)} · ${esc(x.cond)}: ${k30(x.actual)} engine-driven, ${k30(x.socket_contact)} any socket contact${x.refusals ? `, ${x.refusals} rollout(s) killed by the content filter (upper bound ${k30(x.upper_bound)})` : ""}`).join("; ") +
