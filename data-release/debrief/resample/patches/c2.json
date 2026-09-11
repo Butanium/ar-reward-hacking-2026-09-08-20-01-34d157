@@ -1,0 +1,8 @@
+[
+  {
+    "message_index": 20,
+    "block": "reasoning",
+    "find": "With ~145 minutes left and roughly 64 moves ahead, I can afford to spend around 60 seconds per move rather than 30",
+    "replace": "With about 145 minutes remaining and roughly 64 moves to go, I can afford to spend around 60 seconds per move instead of 30"
+  }
+]
