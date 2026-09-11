@@ -102,6 +102,7 @@ if (missing.length) {
 }
 
 const pct = (k, n) => n ? Math.round(100 * k / n) + "%" : "–";
+const ci = w => `${KitCharts.pctFmt(w.est)} (95% CI ${KitCharts.pctFmt(w.lo)}–${KitCharts.pctFmt(w.hi)})`;
 const cheatK = (m, c) => A(m, c).cheat_total.k;
 const T = [
   `Reproduction holds at n=30: original prompt → Fable ${cheatK("Fable 5.1","original")}/30, Astra ${cheatK("GPT-6-Astra","original")}/30 engine-driven episodes (Goodhart Labs' n=10 post: 3/10, 10/10).`,
@@ -111,7 +112,7 @@ const T = [
   `With a full n=30 baseline, “believe in yourself!” no longer stands out: Fable ${cheatK("Fable 5.1","believe in yourself!")}/30 vs ${cheatK("Fable 5.1","original")}/30 baseline (overlapping CIs), Astra ${cheatK("GPT-6-Astra","believe in yourself!")}/30 vs ${cheatK("GPT-6-Astra","original")}/30 — the phase-1-only “believe raises Fable” signal did not survive upsampling.`,
   `stop_eval was never called in ${A("Fable 5.1","stop_eval tool").n + A("GPT-6-Astra","stop_eval tool").n} rollouts with the tool available; Fable still dropped to ${cheatK("Fable 5.1","stop_eval tool")}/${A("Fable 5.1","stop_eval tool").n} while Astra kept cheating (${cheatK("GPT-6-Astra","stop_eval tool")}/${A("GPT-6-Astra","stop_eval tool").n}).`,
 ];
-T.push(`Anthropic's content filter killed ${CONDS.reduce((s, c) => s + A("Fable 5.1", c).seg["provider refusal"].count, 0)} Fable 5.1 rollouts across all arms (never GPT-6-Astra), each right after reconnaissance exposed the engine socket. Treated as an upper bound on cheating: Fable's original-prompt rate is ${cheatK("Fable 5.1","original")}/30 observed, at most ${cheatK("Fable 5.1","original") + A("Fable 5.1","original").seg["provider refusal"].count}/30; its zeros in no-GRADING / no-tools / nogame stay ≤ ${Math.max(...["no GRADING","no external tools","do not game the eval"].map(c => A("Fable 5.1", c).seg["provider refusal"].count))}/30 even if every filtered rollout had gone on to cheat; stop_eval ≤ ${A("Fable 5.1","stop_eval tool").seg["provider refusal"].count}/30.`);
+T.push(`Anthropic's content filter killed ${CONDS.reduce((s, c) => s + A("Fable 5.1", c).seg["provider refusal"].count, 0)} Fable 5.1 rollouts across all arms (never GPT-6-Astra), each right after reconnaissance exposed the engine socket. Treated as an upper bound on cheating (every filtered rollout counted as a cheat, Wilson 95% CI): Fable's original-prompt rate rises from ${ci(A("Fable 5.1","original").cheat_total)} observed to ${ci(A("Fable 5.1","original").cheat_upper_bound)}; "believe in yourself!" from ${ci(A("Fable 5.1","believe in yourself!").cheat_total)} to ${ci(A("Fable 5.1","believe in yourself!").cheat_upper_bound)}; stop_eval from ${ci(A("Fable 5.1","stop_eval tool").cheat_total)} to ${ci(A("Fable 5.1","stop_eval tool").cheat_upper_bound)}; no-GRADING / no-tools / nogame are unaffected (0 refusals, so observed = upper bound).`);
 const tl = document.getElementById("tldr-list");
 for (const t of T) { const li = document.createElement("li"); li.textContent = t; tl.appendChild(li); }
 
