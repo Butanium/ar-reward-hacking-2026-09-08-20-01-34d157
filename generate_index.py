@@ -64,6 +64,20 @@ CARDS = [
         ],
     ),
     dict(
+        dir="Disclosure-rate-on-resampled-final-turns",
+        kicker="Debrief follow-up",
+        title="When Fable 5.1 disclosed the engine, how often would it have?",
+        blurb="""The four Fable 5.1 cheating trajectories whose final answer admitted the engine use,
+        with that final turn redrawn 10&times; each from the identical replayed context (prefix
+        served from cache) and every redraw judged by the campaign's disclosure judge. All 40
+        redrawn answers quoted in full.""",
+        stats=[
+            ("16/34", "redrawn final answers that still disclose (originals: 4/4)"),
+            ("10/10 vs 1/10", "most and least stable of the four trajectories"),
+            ("8/8 vs 8/26", "disclosed when written as prose vs as a <code>submit()</code> one-liner"),
+        ],
+    ),
+    dict(
         dir="Poll-predictions-vs-results",
         kicker="Forecasts",
         title="How surprising were the results? Poll predictions vs. what happened",

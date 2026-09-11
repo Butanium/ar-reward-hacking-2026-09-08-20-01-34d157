@@ -37,6 +37,7 @@ ALIASES = {
     "debrief": "Debrief-probe-self-reported-reward-hacking",
     "denial": "Debrief-denial---resampling-and-reasoning-ablations",
     "poll": "Poll-predictions-vs-results",
+    "redraw": "Disclosure-rate-on-resampled-final-turns",
     "stopeval": "Fable-5-on-the-stop_eval-condition",
     "motivated": "Motivated-reasoning-in-Fable-s-cheating-decisions",
     "repro": "Beat-stockfish-reproduction-results",
