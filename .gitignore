@@ -7,3 +7,11 @@ workspace/beat-stockfish/
 __pycache__/
 *.pyc
 _site/
+
+# Render-check screenshots from report development. Scratch: no report or doc
+# ever references one (report charts are drawn in the browser, not embedded),
+# and they had grown to 11 MB across 7 analysis dirs. `git add -f` if you ever
+# genuinely need to commit one.
+analysis/**/*.png
+app/*.png
+tmp/**/*.png
