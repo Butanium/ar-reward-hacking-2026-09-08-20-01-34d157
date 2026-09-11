@@ -1,0 +1,63 @@
+name: Publish report index to Pages
+
+# Regenerates index.html from whatever is in reports/ and deploys the site, so
+# adding a report_vN.html is the only step needed to update the landing page.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'reports/**'
+      - 'kit/**'
+      - 'generate_index.py'
+      - 'scripts/build_site.py'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it half-published; queue
+# the newer one behind it.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate index and stage the site
+        run: python scripts/build_site.py --out _site
+
+      - name: Show index.html diff vs the committed copy
+        # Not a failure: the deployed page is generated here and is correct
+        # either way. This just surfaces when the committed copy has gone stale.
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "committed index.html is up to date"
+          else
+            echo "::notice::index.html regenerated differently from the committed copy; run 'python generate_index.py' and commit to keep them in sync"
+            git --no-pager diff --stat -- index.html
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -6,3 +6,4 @@ repos/
 workspace/beat-stockfish/
 __pycache__/
 *.pyc
+_site/

@@ -77,6 +77,20 @@ CARDS = [
             ("100%", "Fable 5 cheat rate, upper bound (vs 6.7% observed)"),
         ],
     ),
+    dict(
+        dir="Motivated-reasoning-in-Fable-s-cheating-decisions",
+        kicker="Reasoning analysis",
+        title="Motivated reasoning in the cheating decisions",
+        blurb="""A <code>claude-sonnet-5</code> judge reads every cheating trajectory &mdash; reasoning
+        summaries plus all visible text and actions &mdash; and classifies how the decision to use
+        the engine was reasoned: rationalised as legitimate, acknowledged as cheating and done
+        anyway, or never deliberated. Every verdict is shown with its verbatim quotes.""",
+        stats=[
+            ("29/108", "rationalise the engine use as legitimate"),
+            ("77/108", "used it with no visible deliberation at all"),
+            ("3/108", "said they planned to disclose it"),
+        ],
+    ),
 ]
 
 ALSO = [
