@@ -64,6 +64,20 @@ CARDS = [
         ],
     ),
     dict(
+        dir="Poll-predictions-vs-results",
+        kicker="Forecasts",
+        title="How surprising were the results? Poll predictions vs. what happened",
+        blurb="""Eleven readers predicted, before the arms ran at full size, what share of rollouts
+        would use the engine under four prompt/tool changes for each model. Every prediction
+        next to the measured rate, the cells voters missed most and in which direction, and the
+        error broken down by self-reported AI-safety experience.""",
+        stats=[
+            ("30% &rarr; 0/30", "median forecast vs result, GPT-6-Astra &ldquo;no external tools&rdquo;"),
+            ("30% &rarr; 0/30", "same, Fable 5.1 &ldquo;no GRADING&rdquo;"),
+            ("29 vs 21 pp", "mean miss, researchers vs learners/readers"),
+        ],
+    ),
+    dict(
         dir="Debrief-denial---resampling-and-reasoning-ablations",
         kicker="Debrief follow-up",
         title="Debrief denial &mdash; why one trajectory always says it did not reward-hack",

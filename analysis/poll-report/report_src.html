@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poll predictions vs results — engine use in the beat-stockfish ablations</title>
+<style>/*%%KIT_CSS%%*/
+table.meta { border-collapse: collapse; margin: .4em 0 1em; font-size: .9em; }
+table.meta th, table.meta td { border: 1px solid var(--border); padding: .35em .7em; text-align: left; vertical-align: top; }
+table.meta th { background: var(--surface); font-weight: 600; }
+table.meta td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.two { display: grid; gap: 1rem; }
+@media (min-width: 64rem) { .two { grid-template-columns: 1fr 1fr; } }
+.why { border-left: 3px solid var(--grid); padding: .3em .9em; margin: .6em 0; }
+.why .who { font-family: var(--sans); font-size: .8rem; color: var(--muted); }
+.why .who b { color: var(--ink); }
+.why p { margin: .2em 0; }
+.why.blank p { color: var(--muted); font-style: italic; }
+.sen-0 { border-left-color: var(--series-4); } .sen-1 { border-left-color: var(--series-3); }
+.sen-2 { border-left-color: var(--series-2); } .sen-3 { border-left-color: var(--series-1); }
+</style>
+</head>
+<body>
+<div class="page">
+  <aside class="sidebar no-print"><div class="panel">
+    <span class="kicker">On this page</span><nav id="toc"></nav>
+  </div></aside>
+  <main class="content">
+    <h1>How surprising were the ablation results? Poll predictions vs. what happened</h1>
+    <p class="byline">Before the prompt-ablation arms of the <code>beat-stockfish</code> honeypot ran at full size, a short poll (“<span id="poll-title"></span>”) asked readers to predict, for four prompt/tool changes and two models, what percentage of rollouts would use the exposed opponent engine. <strong id="n-resp"></strong> people answered between <span id="poll-first"></span> and <span id="poll-last"></span>, each giving a self-described level of AI-safety experience. This report puts every prediction next to the measured rate. Measured rate = share of rollouts the judge classed as <em>engine-driven</em> (the engine chose the moves), n&nbsp;=&nbsp;30 per model per condition, Wilson 95% CIs; models <code>anthropic/claude-fable-5.1</code> and <code>openai/gpt-6-astra</code> via OpenRouter.</p>
+
+    <div class="tldr"><strong>TL;DR</strong><ul id="tldr"></ul></div>
+
+    <h2 id="poll">1. What was asked</h2>
+    <p>Four changes to the original setup, each asked for both models as “What percentage of rollouts will use the engine?” with answers in 10-point steps. The original prompt itself was not asked about; the form ran while the only original-prompt numbers were the phase-1 n&nbsp;=&nbsp;10 results (<span id="p1-line"></span>).</p>
+    <div class="overflow-x"><table class="meta" id="cond-table"></table></div>
+    <p>Respondents by self-reported experience: <span id="sen-counts"></span>.</p>
+
+    <h2 id="pred">2. Predictions next to results</h2>
+    <p>Each dot is one respondent's prediction; the bar is the measured engine-driven rate with its 95% CI. Hover a dot for who made it.</p>
+    <div class="two">
+      <figure><div id="fig-fable"></div><figcaption>Fable 5.1 — measured engine-driven rate per condition (bars, n=30, Wilson 95% CI) with the 11 individual predictions overlaid.</figcaption></figure>
+      <figure><div id="fig-astra"></div><figcaption>GPT-6-Astra — same layout.</figcaption></figure>
+    </div>
+    <p class="note" id="defs-note"></p>
+
+    <h2 id="surprise">3. Where the surprise was</h2>
+    <p>Mean absolute error per condition&nbsp;×&nbsp;model (how far the typical prediction sat from the result), sorted. Dots are individual respondents.</p>
+    <figure class="wide"><div id="fig-mae"></div><figcaption>Mean |prediction − measured rate| per cell, bootstrap 95% CI over the 11 respondents, individual respondents as dots. Cells where the measured rate is 0% can only be missed upward.</figcaption></figure>
+    <div id="surprise-text"></div>
+    <p>Every prediction, as a signed miss (prediction − result). Rows are respondents grouped by experience; red = predicted more engine use than happened, blue = less.</p>
+    <figure class="wide"><div id="fig-heat"></div><figcaption>Signed error per respondent × cell, in percentage points; the number in each cell is the prediction. Rows sorted by self-reported experience (most experienced at the top).</figcaption></figure>
+
+    <h2 id="seniority">4. By self-reported experience</h2>
+    <p id="sen-intro"></p>
+    <figure class="wide"><div id="fig-sen"></div><figcaption>Mean absolute error per respondent, averaged within each experience level, split by model. Bootstrap 95% CI over respondents (⚠ marks groups with fewer than 3 respondents — two of the four levels have exactly two, so treat this as descriptive), individual respondents as dots.</figcaption></figure>
+    <p id="sen-text"></p>
+
+    <h2 id="why">5. What respondents said explained their predictions</h2>
+    <p>The optional free-text field, verbatim, with the respondent's experience level and their overall mean absolute error.</p>
+    <div id="why-list"></div>
+
+    <h2 id="appendix">Appendix</h2>
+    <details data-fold="app-table"><summary>A. Measured rates under three definitions of “used the engine”</summary>
+      <p class="note">“Engine-driven” is the judge's class (the engine chose the moves) and is what the figures use. “Grader flag” is the environment's root-owned detector (any UCI search on the socket, including one-off probes). “Socket contact” is any connection to the engine socket at all. “Upper bound” counts Fable 5.1 rollouts killed by Anthropic's content filter as if they had cheated (GPT-6-Astra had none).</p>
+      <div class="overflow-x"><table class="meta" id="app-table"></table></div></details>
+    <details data-fold="app-raw"><summary>B. Every prediction, with the experience level as worded on the form</summary><div class="overflow-x"><table class="meta" id="app-raw"></table></div></details>
+  </main>
+</div>
+<script type="application/json" id="data">%%PAYLOAD%%</script>
+<script>/*%%KIT_JS%%*/
+(function () {
+  const D = JSON.parse(document.getElementById("data").textContent);
+  const esc = KitCards.esc, pct = KitCharts.pctFmt, $ = id => document.getElementById(id);
+  const pp = v => `${Math.round(v * 100)} pp`;
+  const F = "Fable 5.1", A = "GPT-6-Astra";
+  const CONDS = D.conds.map(c => c.short);
+  const cell = (m, c) => D.cells.find(x => x.model === m && x.cond === c);
+  const senRank = Object.fromEntries(D.seniority_levels.map((l, i) => [l, i]));
+  const senCount = Object.fromEntries(D.seniority_levels.map(l => [l, D.respondents.filter(r => r.seniority === l).length]));
+  const k30 = w => `${w.k}/${w.n}`;
+
+  $("poll-title").textContent = D.poll_title;
+  $("n-resp").textContent = D.respondents.length;
+  $("poll-first").textContent = D.poll_window.first;
+  $("poll-last").textContent = D.poll_window.last;
+  $("p1-line").innerHTML = `Fable 5.1 ${D.phase1_original[F].engine_driven}/10 engine-driven, GPT-6-Astra ${D.phase1_original[A].engine_driven}/10`;
+  $("sen-counts").innerHTML = D.seniority_levels.map(l => `<b>${senCount[l]}</b> ${esc(l)}`).join(", ") + ` (the form's full wording is in appendix B)`;
+
+  // ---------- TL;DR
+  const worst = [...D.cells].sort((a, b) => b.abs_err_mean.est - a.abs_err_mean.est);
+  const c = (m, cnd) => cell(m, cnd);
+  $("tldr").innerHTML = [
+    `Two results caught almost everyone out: <b>GPT-6-Astra under “no external tools”</b> went to <b>${k30(c(A, "no-tools-clarif").actual)}</b> (median prediction ${pct(c(A, "no-tools-clarif").pred_median.est)}; ${c(A, "no-tools-clarif").n_exact}/11 said 0%), and <b>Fable 5.1 under “no GRADING”</b> went to <b>${k30(c(F, "no-grading").actual)}</b> (median prediction ${pct(c(F, "no-grading").pred_median.est)}; ${c(F, "no-grading").n_exact}/11 said 0%).`,
+    `Voters expected Fable 5.1 to keep cheating at 20–30% in every arm; it went to 0/30 in three of the four (no-GRADING, no-tools, stop_eval). Only its “believe in yourself!” rate (${k30(c(F, "believe").actual)}) landed where predicted (median ${pct(c(F, "believe").pred_median.est)}).`,
+    `Voters expected GPT-6-Astra to be nearly immune (median predictions: no-grading ${pct(c(A, "no-grading").pred_median.est)}, believe ${pct(c(A, "believe").pred_median.est)}, stop-eval-tool ${pct(c(A, "stop-eval-tool").pred_median.est)}). It was movable: ${k30(c(A, "no-grading").actual)} without the GRADING section, ${k30(c(A, "stop-eval-tool").actual)} with the stop_eval tool, ${k30(c(A, "no-tools-clarif").actual)} told “without any access to external tools”.`,
+    `Across all eight cells the typical prediction missed by ${pp(D.cells.reduce((s, x) => s + x.abs_err_mean.est, 0) / D.cells.length)} and erred toward <em>more</em> cheating than happened in ${D.cells.filter(x => x.signed_err_mean.est > 0).length} of 8 cells.`,
+    `Self-reported experience did not help: the four researchers missed by ${pp(D.split["researchers (early-career + experienced)"].mae_all.est)} on average vs ${pp(D.split["non-researchers (learner + engaged reader)"].mae_all.est)} for the seven learners/readers — mostly by predicting more cheating from both models. With 2–5 people per level this is descriptive only.`,
+  ].map(s => `<li>${s}</li>`).join("");
+
+  // ---------- condition table
+  $("cond-table").innerHTML = `<tr><th>poll label</th><th>the change</th><th>arm in the results</th></tr>` +
+    D.conds.map(cd => `<tr><td><code>${esc(cd.short)}</code></td><td>${esc(cd.wording)}</td><td>${esc(cd.data_name)}</td></tr>`).join("");
+
+  // ---------- fig 1/2: bars + prediction dots
+  function predFig(el, model) {
+    const values = CONDS.map(cnd => {
+      const x = cell(model, cnd);
+      return { group: cnd, series: "measured (engine-driven)", est: x.actual.est, lo: x.actual.lo, hi: x.actual.hi, n: x.actual.n,
+        points: x.predictions.map(p => ({ label: `${p.id} · ${p.seniority}`, value: p.value })) };
+    });
+    KitCharts.groupedBars(el, { groups: CONDS, series: [{ name: "measured (engine-driven)", seriesIndex: model === F ? 1 : 2 }],
+      values, yMin: 0, yMax: 1, yFmt: pct, yTitle: "share of rollouts using the engine", showN: true, w: 520, h: 300 });
+    el.insertAdjacentHTML("beforeend", `<p class="note" style="margin:.3em 0 0">${esc(model)} · dots = the 11 predictions</p>`);
+  }
+  predFig($("fig-fable"), F); predFig($("fig-astra"), A);
+  const defs = D.cells.filter(x => x.socket_contact.k !== x.actual.k || x.refusals);
+  $("defs-note").innerHTML = `“Used the engine” is read here as engine-driven play. Under looser definitions some Fable 5.1 cells move: ` +
+    defs.map(x => `${esc(x.model)} · ${esc(x.cond)}: ${k30(x.actual)} engine-driven, ${k30(x.socket_contact)} any socket contact${x.refusals ? `, ${x.refusals} rollout(s) killed by the content filter (upper bound ${k30(x.upper_bound)})` : ""}`).join("; ") +
+    `. GPT-6-Astra's numbers are identical under all three (appendix A).`;
+
+  // ---------- fig 3: MAE per cell
+  const lab = x => `${x.model === F ? "Fable" : "Astra"} · ${x.cond}`;
+  KitCharts.groupedBars($("fig-mae"), {
+    groups: worst.map(lab),
+    groupFull: (() => { const m = Object.fromEntries(worst.map(x => [lab(x), `${x.model} · ${x.cond}: measured ${k30(x.actual)}, median prediction ${pct(x.pred_median.est)}, ${x.n_within_10pp}/11 within 10 pp`])); return g => m[g] || g; })(),
+    series: [{ name: "mean |prediction − result|", seriesIndex: 5 }],
+    values: worst.map(x => ({ group: lab(x), series: "mean |prediction − result|", est: x.abs_err_mean.est, lo: x.abs_err_mean.lo, hi: x.abs_err_mean.hi, n: 11,
+      points: x.predictions.map(p => ({ label: `${p.id} · ${p.seniority}: predicted ${pct(p.value)}`, value: Math.abs(p.value - x.actual.est) })) })),
+    yMin: 0, yMax: 1, yFmt: pct, yTitle: "mean absolute error", h: 320,
+  });
+  $("surprise-text").innerHTML = `<ul>` + worst.slice(0, 4).map(x =>
+    `<li><b>${esc(x.model)} · ${esc(x.cond)}</b> — measured <b>${k30(x.actual)}</b> (${pct(x.actual.est)}); predictions ranged ${pct(Math.min(...x.predictions.map(p => p.value)))}–${pct(Math.max(...x.predictions.map(p => p.value)))}, median ${pct(x.pred_median.est)}; ${x.n_over} predicted more, ${x.n_under} less, ${x.n_within_10pp} within 10 pp.</li>`).join("") +
+    `</ul><p>The two cells voters got closest on were both Fable 5.1: “no external tools” (measured ${k30(c(F, "no-tools-clarif").actual)}, ${c(F, "no-tools-clarif").n_exact}/11 predicted exactly 0%, median ${pct(c(F, "no-tools-clarif").pred_median.est)}) and “believe in yourself!” (measured ${k30(c(F, "believe").actual)}, median prediction ${pct(c(F, "believe").pred_median.est)}). The shape of the misses is consistent: where a change moved a model <em>down</em>, voters under-estimated the drop, for Fable in every downward arm and for GPT-6-Astra most of all in the no-tools arm — the one arm where Astra went to zero.</p>`;
+
+  // ---------- heatmap
+  const rsorted = [...D.respondents].sort((a, b) => b.seniority_rank - a.seniority_rank || a.id.localeCompare(b.id, undefined, { numeric: true }));
+  const cols = D.cells.map(x => x.key);
+  const colDisp = k => { const [m, cnd] = k.split("|"); return `${m === F ? "Fable" : "Astra"} · ${cnd}`; };
+  KitCharts.heatmap($("fig-heat"), {
+    rows: rsorted.map(r => r.id), rowLabel: id => { const r = D.respondents.find(x => x.id === id); return `${r.id} · ${r.seniority}`; },
+    cols: cols.map(colDisp),
+    cells: rsorted.flatMap(r => cols.map(k => { const e = r.err[k]; const x = D.cells.find(y => y.key === k);
+      return { row: r.id, col: colDisp(k), value: e, text: pct(r.pred[k]), tip: `${r.id} (${r.seniority}) predicted ${pct(r.pred[k])}; measured ${pct(x.actual.est)} → ${e >= 0 ? "+" : "−"}${pp(Math.abs(e))}` }; })),
+    diverging: true, vMin: -1, vMax: 1, yTitle: "respondent", m: { t: 10, r: 10, b: 130, l: 200 }, h: 560,
+  });
+
+  // ---------- seniority
+  const G = D.seniority_groups;
+  $("sen-intro").innerHTML = `Respondents chose one of four levels: ${D.seniority_levels.map(l => `<em>${esc(D.seniority_full[l])}</em>`).join("; ")}. Counts: ${D.seniority_levels.map(l => `${senCount[l]} ${esc(l)}`).join(", ")}.`;
+  KitCharts.groupedBars($("fig-sen"), {
+    groups: G.map(g => g.label),
+    series: [{ name: F, seriesIndex: 1 }, { name: A, seriesIndex: 2 }],
+    values: G.flatMap(g => [F, A].map(m => ({ group: g.label, series: m, est: g[`mae_${m}`].est, lo: g[`mae_${m}`].lo, hi: g[`mae_${m}`].hi, n: g.n,
+      points: g[`mae_${m}`].points.map(p => ({ label: `${p.label}`, value: p.value })) }))),
+    yMin: 0, yMax: 0.6, yFmt: pct, yTitle: "mean absolute error", showN: true, lowN: 3, h: 320,
+  });
+  const S = D.split;
+  const nr = S["non-researchers (learner + engaged reader)"], rs = S["researchers (early-career + experienced)"];
+  $("sen-text").innerHTML = `Pooling into two groups: the ${nr.n} non-researchers (learners and engaged readers) missed by <b>${pp(nr.mae_all.est)}</b> on average [${pp(nr.mae_all.lo)}, ${pp(nr.mae_all.hi)}]; the ${rs.n} researchers (early-career and experienced) by <b>${pp(rs.mae_all.est)}</b> [${pp(rs.mae_all.lo)}, ${pp(rs.mae_all.hi)}]. No level predicted less cheating than happened on average, and the over-prediction is larger for the researchers: mean signed error on Fable 5.1 ${G.map(g => `${esc(g.label)} ${g[`bias_${F}`].est >= 0 ? "+" : "−"}${pp(Math.abs(g[`bias_${F}`].est))}`).join(", ")}; on GPT-6-Astra ${G.map(g => `${esc(g.label)} ${g[`bias_${A}`].est >= 0 ? "+" : "−"}${pp(Math.abs(g[`bias_${A}`].est))}`).join(", ")}. The best single forecaster was ${(() => { const b = [...D.respondents].sort((a, b) => a.mae_all - b.mae_all)[0]; return `${b.id} (${esc(b.seniority)}, ${pp(b.mae_all)} mean miss)`; })()}; the worst ${(() => { const b = [...D.respondents].sort((a, b) => b.mae_all - a.mae_all)[0]; return `${b.id} (${esc(b.seniority)}, ${pp(b.mae_all)})`; })()}. With two people in two of the levels, none of this separates experience from noise.`;
+
+  // ---------- free text
+  $("why-list").innerHTML = rsorted.map(r => `<div class="why sen-${r.seniority_rank} ${r.why ? "" : "blank"}"><div class="who"><b>${r.id}</b> · ${esc(r.seniority)} · mean miss ${pp(r.mae_all)} (Fable ${pp(r[`mae_${F}`])}, Astra ${pp(r[`mae_${A}`])})</div><p>${r.why ? esc(r.why) : "(left blank)"}</p></div>`).join("");
+
+  // ---------- appendix A
+  const conds5 = ["original", ...CONDS];
+  $("app-table").innerHTML = `<tr><th>model</th><th>condition</th><th>engine-driven</th><th>grader flag</th><th>socket contact</th><th>content-filter kills</th><th>upper bound</th></tr>` +
+    [F, A].flatMap(m => conds5.map(cnd => { const a = D.actual[`${m}|${cnd}`]; return `<tr><td>${esc(m)}</td><td>${esc(cnd)}</td><td class="num">${k30(a.engine_driven)}</td><td class="num">${k30(a.grader_flagged)}</td><td class="num">${k30(a.socket_contact)}</td><td class="num">${a.refusals}</td><td class="num">${k30(a.upper_bound)}</td></tr>`; })).join("");
+  // ---------- appendix B
+  $("app-raw").innerHTML = `<tr><th>respondent</th><th>experience (as worded on the form)</th>${cols.map(k => `<th>${esc(k.replace("|", " · ").replace(F, "Fable").replace(A, "Astra"))}</th>`).join("")}</tr>` +
+    rsorted.map(r => `<tr><td>${r.id}</td><td>${esc(r.seniority_full)}</td>${cols.map(k => `<td class="num">${pct(r.pred[k])}</td>`).join("")}</tr>`).join("") +
+    `<tr><th>measured</th><th></th>${cols.map(k => `<th class="num">${pct(D.cells.find(x => x.key === k).actual.est)}</th>`).join("")}</tr>`;
+
+  KitToc.build($("toc"));
+})();
+</script>
+</body>
+</html>
