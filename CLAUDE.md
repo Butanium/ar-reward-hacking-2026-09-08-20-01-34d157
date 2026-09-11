@@ -8,7 +8,8 @@ before touching anything; the gotchas below were each learned the hard way.
 
 | Path | What | Note |
 |---|---|---|
-| `reports/` | Published HTML reports + their `spec.md` | `report_v*.html` are **frozen snapshots — append-only, never edit** |
+| `reports/` | Published HTML reports + their `spec.md` and `report_vN.md` | `report_v*.html` are **frozen snapshots — append-only, never edit** |
+| `tools/` | `samples.py` — read any report's embedded corpus from the terminal | see `tools/README.md`; start here instead of opening a 7 MB HTML |
 | `analysis/` | Report generators: `prepare_data*.py` → `build_report*.py` | one dir per report; `*_v3` is the current ablations pipeline |
 | `data-release/` | Canonical analysed data (see its README) | `eval-logs/` = 22 Inspect `.eval` arms; `transcripts.jsonl` = 360 flat rollouts |
 | `kit/` | Copy of the html-report-kit component library | reports build from **this** copy; a kit edit restyles every report on rebuild |
@@ -23,6 +24,25 @@ rig, the judges, the venv, and the raw `logs/`. A fresh clone of *this* repo wil
 it. When a `prepare_data*.py` path points into `workspace/beat-stockfish/...`, that is the
 live-environment location; the committed `data-release/` is the portable copy of the same
 logs.
+
+## Reading a report (start here)
+
+Don't open a `report_v*.html` — the ablations one is 7.6 MB, most of it the embedded
+corpus. Two cheaper doors:
+
+- **`reports/<report>/report_vN.md`** — the report as markdown, one per published HTML.
+  Same sections, figures as tables. Regenerate with `python3 tools/samples.py text`.
+- **`python3 tools/samples.py`** — the corpus behind the report, with the filter
+  dimensions the on-page explorer offers: `schema`, `list`, `draw`, `show`, `search`,
+  `stats`. Full docs in `tools/README.md`.
+
+```bash
+python3 tools/samples.py schema ablations
+python3 tools/samples.py draw ablations -n 3 --seed 1 --where 'outcome=cheated*'
+python3 tools/samples.py show ablations --id p2-baseline-fable51:e3 --out /tmp/t.md
+```
+
+Quote figures from `stats` (Python-computed at build time), not from rows you recount.
 
 ## Rebuilding a report
 

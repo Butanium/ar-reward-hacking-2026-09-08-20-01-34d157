@@ -21,11 +21,18 @@ stated reasoning, and example transcripts — is in the reports.
 
 ## What's here
 
-- **`reports/`** — published HTML reports (open in a browser):
+- **`reports/`** — published HTML reports (open in a browser), each with a `report_vN.md`
+  alongside it — the same report as markdown, for reading without a browser:
   - `Beat-stockfish-reproduction-and-prompt-ablations/` — the main report (n = 30).
   - `Debrief-probe-self-reported-reward-hacking/` — follow-up: when a cheating trajectory
     is asked about it in a debrief turn, does it self-report?
+  - `Motivated-reasoning-in-Fable-s-cheating-decisions/` — how the decision to use the
+    engine was reasoned, judged from the trajectories.
+  - `Fable-5-on-the-stop_eval-condition/` — Fable 5 under the stop_eval condition.
   - `Beat-stockfish-reproduction-results/` — early baseline-only report.
+- **`tools/`** — `samples.py`, which reads the corpus a report embeds from the terminal:
+  the same filter dimensions the on-page sample explorers offer, plus full-text search and
+  whole transcripts. See `tools/README.md`.
 - **`data-release/`** — canonical analysed data: 22 Inspect `.eval` arms plus a flat
   `transcripts.jsonl` (360 rollouts, every judge score + full transcript). See its README.
 - **`analysis/`** — the report generators (`prepare_data*.py` → `build_report*.py`).
