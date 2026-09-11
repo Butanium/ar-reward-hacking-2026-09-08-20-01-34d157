@@ -100,6 +100,23 @@ def check_reports_surfaced(out: Path) -> list[str]:
     return orphans
 
 
+def check_markdown_copies(out: Path) -> list[str]:
+    """Latest report_vN.html with no report_vN.md beside it.
+
+    The markdown copy is how an agent reads a report; a new version published
+    without one silently leaves them on a stale copy.
+    """
+    missing = []
+    for d in sorted((out / "reports").iterdir()):
+        if not d.is_dir():
+            continue
+        vs = sorted((int(m.group(1)), p) for p in d.glob("report_v*.html")
+                    if (m := re.fullmatch(r"report_v(\d+)\.html", p.name)))
+        if vs and not vs[-1][1].with_suffix(".md").exists():
+            missing.append(f"{d.name}/{vs[-1][1].name}")
+    return missing
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -124,6 +141,13 @@ def main() -> int:
         annotate("warning",
                  f"reports/{o} has published versions but is not linked from the index "
                  f"— add it to CARDS or ALSO in generate_index.py")
+
+    no_md = check_markdown_copies(args.out)
+    for m in no_md:
+        annotate("warning",
+                 f"reports/{m} has no markdown copy beside it — regenerate the prose with "
+                 f"`python3 tools/samples.py text <report> --engine rendered` and write "
+                 f"report_vN.md (see tools/README.md)")
 
     if broken:
         log(f"\nFAILED: {len(broken)} broken link(s)")
